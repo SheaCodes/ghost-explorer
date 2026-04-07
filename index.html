@@ -1,0 +1,3749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marine Seismic Ghost Interference Explorer</title>
+<script src="plotly.min.js"></script>
+<style>
+/* ============ CSS CUSTOM PROPERTIES ============ */
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-tertiary: #0f3460;
+    --bg-input: #1e2a4a;
+    --accent: #00b4d8;
+    --accent-hover: #0096c7;
+    --accent-warm: #e94560;
+    --accent-green: #4ade80;
+    --text-primary: #e0e0e0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border: #2a2a4a;
+    --border-light: #3a3a5a;
+    --font-mono: 'Consolas', 'Courier New', monospace;
+    --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --radius: 6px;
+    --radius-lg: 10px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* ============ RESET & BASE ============ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    height: 100%; width: 100%;
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* ============ HEADER ============ */
+.app-header {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) auto minmax(280px, 1fr);
+    align-items: center;
+    padding: 14px 28px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    gap: 20px;
+}
+.app-brand {
+    display: flex;
+    align-items: center;
+    justify-self: start;
+    min-width: 0;
+}
+.app-logo {
+    display: block;
+    height: 36px;
+    width: auto;
+    max-width: 358px;
+    flex-shrink: 0;
+}
+.app-title {
+    justify-self: center;
+    font-size: clamp(24px, 2.4vw, 34px);
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.15px;
+    line-height: 1;
+    white-space: nowrap;
+    text-align: center;
+}
+.app-title span {
+    color: var(--accent);
+    font-weight: 700;
+}
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-self: end;
+}
+@media (max-width: 1180px) {
+    .app-header {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "brand actions"
+            "title title";
+        row-gap: 14px;
+    }
+    .app-brand { grid-area: brand; }
+    .app-title { grid-area: title; }
+    .header-right { grid-area: actions; }
+}
+@media (max-width: 760px) {
+    .app-header {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "brand"
+            "title"
+            "actions";
+        justify-items: start;
+    }
+    .app-title { justify-self: start; text-align: left; }
+    .header-right { justify-self: start; }
+}
+
+/* ============ BUTTONS ============ */
+.btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.btn-accent:hover { background: var(--accent-hover); }
+.btn-danger { border-color: var(--accent-warm); color: var(--accent-warm); }
+.btn-danger:hover { background: var(--accent-warm); color: #fff; }
+.btn:disabled,
+.btn:disabled:hover {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+    border-color: var(--border-light);
+    color: var(--text-muted);
+}
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn-group {
+    display: inline-flex;
+    gap: 6px;
+}
+
+/* ============ TAB BAR ============ */
+.tab-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border);
+    padding: 0 16px;
+    gap: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+.tab-btn {
+    flex: 0 0 auto;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text-primary); background: rgba(0,180,216,0.05); }
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(0,180,216,0.08);
+}
+
+/* ============ ADVANCED PANEL ============ */
+.advanced-panel {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+/* ============ TAB CONTENT ============ */
+.tab-content { display: none; overflow: hidden; min-height: 0; }
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ============ CONTROLS PANEL ============ */
+.controls-panel {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 12px 20px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+
+/* ============ CONTROL GROUP ============ */
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+.control-group label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+.control-group .val-display {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 12px;
+}
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 72px;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg-primary);
+    box-shadow: 0 0 4px rgba(0,180,216,0.4);
+}
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg-primary);
+}
+input[type="number"], select {
+    width: 72px;
+    padding: 4px 5px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+}
+input[type="number"]:focus, select:focus {
+    border-color: var(--accent);
+}
+select {
+    width: auto;
+    font-family: var(--font-sans);
+    cursor: pointer;
+}
+.num-sm { width: 58px !important; }
+.num-md { width: 70px !important; }
+.num-lg { width: 82px !important; }
+.range-t0-compact { width: 48px !important; }
+.num-t0-range-compact { width: 50px !important; }
+.num-t0-offset-compact { width: 72px !important; }
+
+/* ============ CHART AREA ============ */
+.chart-area {
+    display: grid;
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+}
+.chart-area.with-readout {
+    grid-template-columns: minmax(0, 1fr) 260px;
+}
+.chart-container {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+/* ============ READOUT PANEL ============ */
+.readout-panel {
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    height: 100%;
+    padding: 16px;
+    overflow-y: auto;
+    font-size: 12px;
+}
+.readout-panel h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+.readout-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 0;
+}
+.readout-item .label { color: var(--text-secondary); font-size: 11px; }
+.readout-item .value {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 12px;
+}
+.readout-section { margin-bottom: 16px; }
+.notch-list {
+    list-style: none;
+    padding: 0;
+}
+.notch-list li {
+    padding: 3px 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent-warm);
+}
+.notch-list li span.n-label { color: var(--text-muted); }
+
+/* ============ SAVED CURVES ============ */
+.saved-curves-list {
+    margin-top: 8px;
+}
+.saved-curve-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 11px;
+}
+.saved-curve-item .swatch {
+    width: 12px;
+    height: 3px;
+    border-radius: 1px;
+    flex-shrink: 0;
+}
+.saved-curve-item .curve-label {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.saved-curve-item .btn-remove {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 2px;
+    line-height: 1;
+}
+.saved-curve-item .btn-remove:hover { color: var(--accent-warm); }
+
+/* ============ CSV EXPORT ============ */
+.export-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    flex: 1 1 auto;
+    gap: 16px;
+    padding: 18px;
+    overflow: auto;
+    align-content: start;
+}
+.export-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow);
+}
+.export-card h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+.export-card p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+.export-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 4px 0 10px 18px;
+}
+.csv-columns {
+    display: grid;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* ============ HEATMAP CONTROLS EXTRAS ============ */
+.controls-right {
+    margin-left: auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+}
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.checkbox-group input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+/* ============ MANUAL MODAL ============ */
+.manual-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    background: rgba(6, 11, 24, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 1200;
+}
+.manual-modal.active { display: flex; }
+.manual-shell {
+    width: min(1180px, calc(100vw - 56px));
+    height: min(860px, calc(100vh - 56px));
+    display: grid;
+    grid-template-columns: 244px minmax(0, 1fr);
+    background: linear-gradient(180deg, rgba(20,30,58,0.98), rgba(13,20,40,0.98));
+    border: 1px solid rgba(110, 231, 249, 0.16);
+    border-radius: 18px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+    overflow: hidden;
+}
+.manual-sidebar {
+    padding: 24px 18px 22px;
+    background:
+        radial-gradient(circle at top left, rgba(0,180,216,0.14), transparent 50%),
+        rgba(10, 18, 36, 0.92);
+    border-right: 1px solid rgba(58,58,90,0.92);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.manual-kicker {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+}
+.manual-sidebar h2 {
+    font-size: 22px;
+    line-height: 1.05;
+    color: var(--text-primary);
+}
+.manual-sidebar p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.manual-language-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.manual-lang-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: rgba(24, 37, 70, 0.72);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.manual-lang-btn:hover {
+    transform: translateX(2px);
+    color: var(--text-primary);
+    border-color: rgba(110, 231, 249, 0.18);
+    background: rgba(31, 47, 85, 0.92);
+}
+.manual-lang-btn.active {
+    color: #fff;
+    border-color: rgba(110, 231, 249, 0.36);
+    background: linear-gradient(135deg, rgba(0,180,216,0.18), rgba(31,47,85,0.95));
+}
+.manual-lang-flag {
+    font-size: 17px;
+    line-height: 1;
+}
+.manual-main {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.manual-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 26px 18px;
+    border-bottom: 1px solid rgba(58,58,90,0.92);
+    background:
+        linear-gradient(180deg, rgba(18,28,53,0.96), rgba(18,28,53,0.82));
+}
+.manual-header-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.manual-overline {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+}
+.manual-title {
+    font-size: 28px;
+    line-height: 1.05;
+    color: var(--text-primary);
+}
+.manual-subtitle {
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+}
+.manual-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 28px 30px 42px;
+    display: grid;
+    gap: 24px;
+}
+.manual-card {
+    display: grid;
+    gap: 14px;
+    padding: 22px 24px;
+    border: 1px solid rgba(58,58,90,0.92);
+    border-radius: 16px;
+    background: rgba(19, 29, 55, 0.72);
+}
+.manual-card h3 {
+    font-size: 21px;
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+.manual-card h4 {
+    font-size: 14px;
+    line-height: 1.25;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.manual-card p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+}
+.manual-card ul {
+    display: grid;
+    gap: 10px;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+.manual-card li strong {
+    color: var(--text-primary);
+}
+.manual-formula {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(9, 15, 30, 0.92);
+    border: 1px solid rgba(58,58,90,0.92);
+    overflow-x: auto;
+}
+.manual-formula code {
+    display: block;
+    color: #98f5ff;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre;
+}
+.manual-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+.manual-note {
+    padding: 12px 14px;
+    border-left: 3px solid var(--accent);
+    background: rgba(0, 180, 216, 0.08);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+@media (max-width: 980px) {
+    .manual-shell {
+        grid-template-columns: 1fr;
+        height: min(920px, calc(100vh - 32px));
+    }
+    .manual-sidebar {
+        border-right: none;
+        border-bottom: 1px solid rgba(58,58,90,0.92);
+    }
+    .manual-language-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 700px) {
+    .manual-modal { padding: 12px; }
+    .manual-shell {
+        width: calc(100vw - 24px);
+        height: calc(100vh - 24px);
+        border-radius: 14px;
+    }
+    .manual-header {
+        padding: 18px 18px 14px;
+    }
+    .manual-title { font-size: 22px; }
+    .manual-body {
+        padding: 18px 18px 28px;
+    }
+    .manual-card {
+        padding: 18px 18px 20px;
+    }
+    .manual-grid {
+        grid-template-columns: 1fr;
+    }
+    .manual-language-list {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ============ SEPARATOR ============ */
+.ctrl-sep {
+    width: 1px;
+    height: 36px;
+    background: var(--border);
+    flex-shrink: 0;
+}
+
+/* ============ HIDDEN ============ */
+.hidden { display: none !important; }
+
+/* ============ SCROLLBAR ============ */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="app-header">
+    <div class="app-brand">
+        <img class="app-logo" src="geospectrum-logo-fullcrop-light.png" alt="GeoSpectrum Technologies Inc">
+    </div>
+    <h1 class="app-title"><span>Ghost</span> Interference Explorer</h1>
+    <div class="header-right">
+        <button class="btn btn-sm" id="btn-manual" onclick="openManual()">Manual</button>
+        <button class="btn btn-sm" id="btn-export" onclick="exportPNG()">Download PNG</button>
+    </div>
+</header>
+
+<div id="manual-modal" class="manual-modal" aria-hidden="true" onclick="handleManualBackdropClick(event)">
+    <div class="manual-shell" role="dialog" aria-modal="true" aria-labelledby="manual-title">
+        <aside class="manual-sidebar">
+            <div>
+                <div class="manual-kicker">Embedded Guide</div>
+                <h2>Manuals</h2>
+            </div>
+            <p>Select a language, read the guide, then close the panel to return to the explorer exactly where you left it.</p>
+            <div id="manual-language-list" class="manual-language-list"></div>
+        </aside>
+        <section class="manual-main">
+            <div class="manual-header">
+                <div class="manual-header-copy">
+                    <div class="manual-overline">Ghost Interference Explorer</div>
+                    <div class="manual-title" id="manual-title">User Manual</div>
+                    <div class="manual-subtitle" id="manual-subtitle">🇬🇧 English</div>
+                </div>
+                <button class="btn btn-sm" type="button" onclick="closeManual()">Close</button>
+            </div>
+            <div class="manual-body" id="manual-body"></div>
+        </section>
+    </div>
+</div>
+
+<!-- ============ ADVANCED PANEL ============ -->
+<div id="advanced-panel" class="advanced-panel">
+    <div class="control-group">
+        <label>Speed of Sound: <span class="val-display" id="val-c">1492</span> m/s</label>
+        <div class="slider-row">
+            <input type="range" id="sl-c" min="1400" max="1600" value="1492" step="1" oninput="onAdvancedChange()">
+            <input type="number" id="num-c" min="1400" max="1600" value="1492" step="1" onchange="onAdvancedNumChange('c')">
+        </div>
+    </div>
+    <div class="control-group">
+        <label>Reflectivity (R): <span class="val-display" id="val-R">1.00</span></label>
+        <div class="slider-row">
+            <input type="range" id="sl-R" min="0" max="1" value="1" step="0.01" oninput="onAdvancedChange()">
+            <input type="number" id="num-R" min="0" max="1" value="1" step="0.01" onchange="onAdvancedNumChange('R')">
+        </div>
+    </div>
+    <div class="control-group">
+        <label>Resolution: <span class="val-display" id="val-resolution">1.0x</span></label>
+        <div class="slider-row">
+            <input type="range" id="sl-resolution" min="0.5" max="6" value="1" step="0.1" oninput="onAdvancedChange()">
+            <input type="number" id="num-resolution" min="0.5" max="6" value="1" step="0.1" onchange="onAdvancedNumChange('resolution')">
+        </div>
+    </div>
+</div>
+
+<!-- ============ TAB BAR ============ -->
+<nav class="tab-bar">
+    <button class="tab-btn active" data-tab="0" onclick="switchTab(0)">SPL vs Variable</button>
+    <button class="tab-btn" data-tab="2" onclick="switchTab(2)">Freq x Source Depth</button>
+    <button class="tab-btn" data-tab="3" onclick="switchTab(3)">Spatial Field (X, Z)</button>
+    <button class="tab-btn" data-tab="4" onclick="switchTab(4)">3D View</button>
+    <button class="tab-btn" data-tab="5" onclick="switchTab(5)">XLSX Export</button>
+</nav>
+
+<!-- ============ TAB 0: SPL vs Variable ============ -->
+<div id="tab-0" class="tab-content active">
+    <div class="controls-panel">
+        <div class="control-group">
+            <label>Sweep Variable</label>
+            <select id="sweep-var" onchange="onSweepVarChange()">
+                <option value="freq">Frequency</option>
+                <option value="sourceDepth" selected>Source Depth</option>
+                <option value="waterDepth">Water Depth</option>
+                <option value="horizOffset">Horizontal Offset</option>
+            </select>
+        </div>
+        <div class="ctrl-sep"></div>
+        <div class="control-group" id="cg-freq">
+            <label>Frequency: <span class="val-display" id="val-t0-freq">2</span> Hz</label>
+            <div class="slider-row">
+                <input type="range" class="range-t0-compact" id="sl-t0-freq" min="0.5" max="200" value="2" step="0.5" oninput="onTab0Change()">
+                <input type="number" class="num-sm" id="num-t0-freq" min="0.5" max="200" value="2" step="0.5" oninput="onTab0NumInput('freq')" onchange="onTab0NumChange('freq')">
+            </div>
+        </div>
+        <div class="control-group" id="cg-sourceDepth">
+            <label>Source Depth: <span class="val-display" id="val-t0-sourceDepth">20</span> m</label>
+            <div class="slider-row">
+                <input type="range" class="range-t0-compact" id="sl-t0-sourceDepth" min="1" max="1000" value="20" step="1" oninput="onTab0Change()">
+                <input type="number" class="num-sm" id="num-t0-sourceDepth" min="1" max="1000" value="20" step="1" oninput="onTab0NumInput('sourceDepth')" onchange="onTab0NumChange('sourceDepth')">
+            </div>
+        </div>
+        <div class="control-group" id="cg-waterDepth">
+            <label>Water Depth: <span class="val-display" id="val-t0-waterDepth">500</span> m</label>
+            <div class="slider-row">
+                <input type="range" class="range-t0-compact" id="sl-t0-waterDepth" min="10" max="5000" value="500" step="10" oninput="onTab0Change()">
+                <input type="number" class="num-lg" id="num-t0-waterDepth" min="10" max="5000" value="500" step="10" oninput="onTab0NumInput('waterDepth')" onchange="onTab0NumChange('waterDepth')">
+            </div>
+        </div>
+        <div class="control-group" id="cg-horizOffset">
+            <label>Horiz. Offset: <span class="val-display" id="val-t0-horizOffset">0</span> m</label>
+            <div class="slider-row">
+                <input type="range" class="range-t0-compact" id="sl-t0-horizOffset" min="0" max="5000" value="0" step="10" oninput="onTab0Change()">
+                <input type="number" class="num-lg num-t0-offset-compact" id="num-t0-horizOffset" min="0" max="5000" value="0" step="10" oninput="onTab0NumInput('horizOffset')" onchange="onTab0NumChange('horizOffset')">
+            </div>
+        </div>
+        <div class="ctrl-sep"></div>
+        <div class="control-group" id="cg-sweep-range">
+            <label id="lbl-sweep-range">Source Depth</label>
+            <div class="slider-row">
+                <input type="number" class="num-lg num-t0-range-compact" id="sweep-min" value="10" step="1" oninput="onTab0SweepInput()" onchange="onTab0Change()">
+                <span style="color:var(--text-muted);font-size:11px">to</span>
+                <input type="number" class="num-lg num-t0-range-compact" id="sweep-max" value="30" step="1" oninput="onTab0SweepInput()" onchange="onTab0Change()">
+                <input type="hidden" id="sweep-pts" value="50">
+                <button class="btn btn-sm" type="button" onclick="resetSweepRange()">Reset Range</button>
+            </div>
+        </div>
+        <div class="ctrl-sep"></div>
+        <div class="control-group">
+            <label>Plot</label>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-accent" type="button" id="btn-t0-both" onclick="setTab0PhaseVisibility(true)">SPL + Phase</button>
+                <button class="btn btn-sm" type="button" id="btn-t0-spl" onclick="setTab0PhaseVisibility(false)">SPL Only</button>
+            </div>
+        </div>
+        <button class="btn btn-sm" type="button" id="btn-t0-compare" onclick="toggleTab0Comparison()">Compare SPL</button>
+        <button class="btn btn-accent btn-sm" onclick="saveCurve()">Save Current</button>
+        <button class="btn btn-danger btn-sm" onclick="clearCurves()">Clear Saved</button>
+    </div>
+    <div class="chart-area with-readout">
+        <div id="chart-0" class="chart-container"></div>
+        <div class="readout-panel" id="readout-0">
+            <div class="readout-section">
+                <h3>Path Geometry</h3>
+                <div class="readout-item"><span class="label">r direct</span><span class="value" id="ro-rdirect">—</span></div>
+                <div class="readout-item"><span class="label">r ghost</span><span class="value" id="ro-rghost">—</span></div>
+                <div class="readout-item"><span class="label">&Delta;r</span><span class="value" id="ro-deltar">—</span></div>
+            </div>
+            <div class="readout-section">
+                <h3>Wave Properties</h3>
+                <div class="readout-item"><span class="label">Frequency</span><span class="value" id="ro-freq">—</span></div>
+                <div class="readout-item"><span class="label">X</span><span class="value" id="ro-x">—</span></div>
+                <div class="readout-item"><span class="label">Wavelength</span><span class="value" id="ro-wavelength">—</span></div>
+                <div class="readout-item"><span class="label">Ghost Delay at Current X</span><span class="value" id="ro-phase">—</span></div>
+                <div class="readout-item"><span class="label">A direct</span><span class="value" id="ro-adirect">—</span></div>
+                <div class="readout-item"><span class="label">A ghost</span><span class="value" id="ro-aghost">—</span></div>
+                <div class="readout-item"><span class="label">Resultant Phase re X=0</span><span class="value" id="ro-resphase">—</span></div>
+            </div>
+            <div class="readout-section">
+                <h3>Ghost Notch Frequencies</h3>
+                <ul class="notch-list" id="ro-notches"></ul>
+            </div>
+            <div class="readout-section">
+                <h3>Saved Curves</h3>
+                <div class="saved-curves-list" id="saved-curves-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ TAB 2: Freq x Source Depth ============ -->
+<div id="tab-2" class="tab-content">
+    <div class="controls-panel">
+        <div class="control-group">
+            <label>Water Depth (Z): <span class="val-display" id="val-t2-waterDepth">500</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t2-waterDepth" min="10" max="5000" value="500" step="10" oninput="onTab2Change()">
+                <input type="number" class="num-lg" id="num-t2-waterDepth" min="10" max="5000" value="500" step="10" onchange="onTab2NumChange('waterDepth')">
+            </div>
+        </div>
+        <div class="control-group">
+            <label>Horiz. Offset: <span class="val-display" id="val-t2-horizOffset">0</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t2-horizOffset" min="0" max="5000" value="0" step="10" oninput="onTab2Change()">
+                <input type="number" class="num-lg" id="num-t2-horizOffset" min="0" max="5000" value="0" step="10" onchange="onTab2NumChange('horizOffset')">
+            </div>
+        </div>
+        <div class="controls-right">
+            <div class="control-group">
+                <label>Display</label>
+                <select id="disp-2" onchange="onTab2Change()">
+                    <option value="spl" selected>SPL (dB)</option>
+                    <option value="phase">Relative Phase to X=0 Total Field</option>
+                </select>
+            </div>
+            <label class="checkbox-group">
+                <input type="checkbox" id="show-notch-2" checked onchange="onTab2Change()"> Show ghost notch locus
+            </label>
+            <div class="control-group">
+                <label>Colorscale</label>
+                <select id="cs-2" onchange="onTab2Change()">
+                    <option value="Viridis" selected>Viridis</option>
+                    <option value="Jet">Jet</option>
+                    <option value="Hot">Hot</option>
+                    <option value="Portland">Portland</option>
+                    <option value="RdBu">RdBu</option>
+                    <option value="YlGnBu">YlGnBu</option>
+                </select>
+            </div>
+            <label class="checkbox-group">
+                <input type="checkbox" id="lock-z-2" onchange="onTab2Change()"> Lock color range
+            </label>
+        </div>
+    </div>
+    <div class="chart-area">
+        <div id="chart-2" class="chart-container"></div>
+    </div>
+</div>
+
+<!-- ============ TAB 3: Spatial Field ============ -->
+<div id="tab-3" class="tab-content">
+    <div class="controls-panel">
+        <div class="control-group">
+            <label>Frequency: <span class="val-display" id="val-t3-freq">2</span> Hz</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t3-freq" min="0.5" max="200" value="2" step="0.5" oninput="onTab3Change()">
+                <input type="number" class="num-sm" id="num-t3-freq" min="0.5" max="200" value="2" step="0.5" onchange="onTab3NumChange('freq')">
+            </div>
+        </div>
+        <div class="control-group">
+            <label>Source Depth: <span class="val-display" id="val-t3-sourceDepth">20</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t3-sourceDepth" min="1" max="1000" value="20" step="1" oninput="onTab3Change()">
+                <input type="number" class="num-sm" id="num-t3-sourceDepth" min="1" max="1000" value="20" step="1" onchange="onTab3NumChange('sourceDepth')">
+            </div>
+        </div>
+        <div class="controls-right">
+            <div class="control-group">
+                <label>Display</label>
+                <select id="disp-3" onchange="onTab3Change()">
+                    <option value="spl" selected>SPL (dB)</option>
+                    <option value="phase">Relative Phase to X=0 Total Field</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Colorscale</label>
+                <select id="cs-3" onchange="onTab3Change()">
+                    <option value="Viridis" selected>Viridis</option>
+                    <option value="Jet">Jet</option>
+                    <option value="Hot">Hot</option>
+                    <option value="Portland">Portland</option>
+                    <option value="RdBu">RdBu</option>
+                    <option value="YlGnBu">YlGnBu</option>
+                </select>
+            </div>
+            <label class="checkbox-group">
+                <input type="checkbox" id="lock-z-3" onchange="onTab3Change()"> Lock color range
+            </label>
+        </div>
+    </div>
+    <div class="chart-area">
+        <div id="chart-3" class="chart-container"></div>
+    </div>
+</div>
+
+<!-- ============ TAB 4: 3D View ============ -->
+<div id="tab-4" class="tab-content">
+    <div class="controls-panel">
+        <div class="control-group">
+            <label>3D Mode</label>
+            <select id="t4-mode" onchange="onTab4ModeChange()">
+                <option value="freqDepth">Freq x Source Depth Surface</option>
+                <option value="spatial">Spatial Field (X, Z) Surface</option>
+                <option value="radiation">Radiation Pattern</option>
+            </select>
+        </div>
+        <div class="ctrl-sep"></div>
+        <!-- Freq x Source Depth controls -->
+        <div class="control-group t4-ctrl t4-freqDepth">
+            <label>Water Depth: <span class="val-display" id="val-t4-wd-fd">500</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t4-wd-fd" min="10" max="5000" value="500" step="10" oninput="onTab4Change()">
+                <input type="number" class="num-lg" id="num-t4-wd-fd" min="10" max="5000" value="500" step="10" onchange="syncTab4Slider('wd-fd')">
+            </div>
+        </div>
+        <div class="control-group t4-ctrl t4-freqDepth hidden">
+            <label>Horiz. Offset: <span class="val-display" id="val-t4-ho-fd">0</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t4-ho-fd" min="0" max="5000" value="0" step="10" oninput="onTab4Change()">
+                <input type="number" class="num-lg" id="num-t4-ho-fd" min="0" max="5000" value="0" step="10" onchange="syncTab4Slider('ho-fd')">
+            </div>
+        </div>
+        <!-- Spatial controls -->
+        <div class="control-group t4-ctrl t4-spatial hidden">
+            <label>Frequency: <span class="val-display" id="val-t4-f-sp">2</span> Hz</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t4-f-sp" min="0.5" max="200" value="2" step="0.5" oninput="onTab4Change()">
+                <input type="number" class="num-sm" id="num-t4-f-sp" min="0.5" max="200" value="2" step="0.5" onchange="syncTab4Slider('f-sp')">
+            </div>
+        </div>
+        <div class="control-group t4-ctrl t4-spatial hidden">
+            <label>Source Depth: <span class="val-display" id="val-t4-sd-sp">20</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t4-sd-sp" min="1" max="1000" value="20" step="1" oninput="onTab4Change()">
+                <input type="number" class="num-sm" id="num-t4-sd-sp" min="1" max="1000" value="20" step="1" onchange="syncTab4Slider('sd-sp')">
+            </div>
+        </div>
+        <!-- Radiation pattern controls -->
+        <div class="control-group t4-ctrl t4-radiation hidden">
+            <label>Frequency: <span class="val-display" id="val-t4-f-rad">20</span> Hz</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t4-f-rad" min="1" max="200" value="20" step="1" oninput="onTab4Change()">
+                <input type="number" class="num-sm" id="num-t4-f-rad" min="1" max="200" value="20" step="1" onchange="syncTab4Slider('f-rad')">
+            </div>
+        </div>
+        <div class="control-group t4-ctrl t4-radiation hidden">
+            <label>Source Depth: <span class="val-display" id="val-t4-sd-rad">20</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t4-sd-rad" min="1" max="1000" value="20" step="1" oninput="onTab4Change()">
+                <input type="number" class="num-sm" id="num-t4-sd-rad" min="1" max="1000" value="20" step="1" onchange="syncTab4Slider('sd-rad')">
+            </div>
+        </div>
+        <div class="control-group t4-ctrl t4-radiation hidden">
+            <label>Max Range: <span class="val-display" id="val-t4-range-rad">500</span> m</label>
+            <div class="slider-row">
+                <input type="range" id="sl-t4-range-rad" min="50" max="5000" value="500" step="50" oninput="onTab4Change()">
+                <input type="number" class="num-lg" id="num-t4-range-rad" min="50" max="5000" value="500" step="50" onchange="syncTab4Slider('range-rad')">
+            </div>
+        </div>
+        <div class="controls-right">
+            <div class="control-group">
+                <label>Display</label>
+                <select id="disp-4" onchange="onTab4Change()">
+                    <option value="spl" selected>SPL (dB)</option>
+                    <option value="phase">Relative Phase to X=0 Total Field</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Colorscale</label>
+                <select id="cs-4" onchange="onTab4Change()">
+                    <option value="Viridis" selected>Viridis</option>
+                    <option value="Jet">Jet</option>
+                    <option value="Hot">Hot</option>
+                    <option value="Portland">Portland</option>
+                    <option value="RdBu">RdBu</option>
+                    <option value="YlGnBu">YlGnBu</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="chart-area">
+        <div id="chart-4" class="chart-container"></div>
+    </div>
+</div>
+
+<!-- ============ TAB 5: XLSX EXPORT ============ -->
+<div id="tab-5" class="tab-content">
+    <div class="controls-panel">
+        <div class="control-group">
+            <label>Curve Export</label>
+            <button class="btn btn-accent btn-sm" type="button" onclick="downloadCurveXLSX()">Download Tab 0 XLSX</button>
+        </div>
+    </div>
+    <div class="export-panel">
+        <div class="export-card">
+            <h3>What Gets Exported</h3>
+            <p>The XLSX file contains the current <strong>SPL vs Variable</strong> curve plus any saved comparison curves.</p>
+            <p>Each curve writes its three fixed variables in the first three rows, then a three-column data table with the swept variable, SPL, and Phase. When multiple curves are present, they are written side-by-side with one blank spacer column between them.</p>
+            <div class="export-meta" id="csv-export-summary">Preparing export summary…</div>
+        </div>
+        <div class="export-card">
+            <h3>Included Curves</h3>
+            <div class="saved-curves-list" id="csv-curve-summary"></div>
+        </div>
+        <div class="export-card">
+            <h3>Worksheet Layout</h3>
+            <div class="csv-columns">
+                <div>Rows 1-3: Fixed Variable + Value</div>
+                <div>Data Header: Swept Variable with units, SPL (dB), Phase (deg)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ JAVASCRIPT ============ -->
+
+
+<!-- ============ JAVASCRIPT ============ -->
+<script>
+// ============ CONSTANTS ============
+const DEFAULT_C = 1492;
+const DEFAULT_R = 1.0;
+const DEFAULT_RESOLUTION_SCALE = 1.0;
+const CURVE_COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c084fc'];
+const MAX_SAVED = 5;
+const STORAGE_KEY = 'ghost-explorer-state-v1';
+const RELATIVE_PHASE_LABEL = 'Relative Phase to X=0 Total Field';
+const RELATIVE_PHASE_SHORT_LABEL = 'Rel. Phase to X=0';
+const MANUALS = {
+    en: {
+        flag: '🇬🇧',
+        label: 'English',
+        html: `
+            <article class="manual-card">
+                <h3>Introduction</h3>
+                <p>Ghost Interference Explorer is an interactive marine-seismic tool for studying how direct and surface-reflected ghost arrivals combine at depth. It is built for quick interpretation, curve comparison, and report-ready export.</p>
+                <ul>
+                    <li><strong>Main outputs:</strong> SPL, phase relative to the zero-offset resultant field, ghost delay, notch frequencies, and 2D or 3D interference patterns.</li>
+                    <li><strong>Main use case:</strong> compare zero-offset and offset geometries so an analyst can understand how neighboring lines differ in level and phase.</li>
+                    <li><strong>Reference convention:</strong> phase in the app is referenced to the resultant field at <code>X = 0</code>, not to the direct wave alone.</li>
+                </ul>
+            </article>
+            <article class="manual-card">
+                <h3>Physics And Math</h3>
+                <p>The model uses a direct path and a surface ghost path from an image source. The evaluation geometry is defined by source depth <code>d</code>, water depth <code>Z</code>, horizontal offset <code>X</code>, sound speed <code>c</code>, and reflectivity <code>R</code>.</p>
+                <div class="manual-formula"><code>r_direct = sqrt((Z - d)^2 + X^2)
+r_ghost  = sqrt((Z + d)^2 + X^2)
+Delta r  = r_ghost - r_direct
+lambda   = c / f</code></div>
+                <div class="manual-formula"><code>A_direct = 1 / r_direct
+A_ghost  = R / r_ghost
+phi_path = 2 * pi * Delta r / lambda
+phi_direct = 2 * pi * r_direct / lambda</code></div>
+                <div class="manual-formula"><code>real = A_direct - A_ghost * cos(phi_path)
+imag = A_ghost * sin(phi_path)
+resultant = sqrt(real^2 + imag^2)
+SPL = 20 * log10(resultant)</code></div>
+                <p><strong>Resultant Phase re X=0</strong> is the phase of the total resultant field at the current geometry minus the phase of the total resultant field at <code>X = 0</code>.</p>
+                <p><strong>Ghost Delay at Current X</strong> is <code>Delta r / c</code> and is shown in milliseconds. Ghost notch frequencies use <code>f_n = n * c / Delta r</code>.</p>
+            </article>
+            <article class="manual-card">
+                <h3>Operation</h3>
+                <div class="manual-grid">
+                    <div>
+                        <h4>Core Tabs</h4>
+                        <ul>
+                            <li><strong>SPL vs Variable:</strong> sweep one variable and hold the other three fixed.</li>
+                            <li><strong>Freq x Source Depth</strong>, <strong>Spatial Field (X, Z)</strong> and <strong>3D View:</strong> inspect SPL or relative phase fields.</li>
+                            <li><strong>XLSX Export:</strong> export the current Tab 1 curve and saved comparison curves.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Recommended Workflow</h4>
+                        <ul>
+                            <li>Choose the swept variable and set the fixed geometry.</li>
+                            <li>Use <strong>Save Current</strong> to build comparison curves.</li>
+                            <li>Use <strong>Compare SPL</strong> to compare every remaining curve to the first saved curve with the same swept variable.</li>
+                            <li>Hover the curve to update the readout for the inspected point.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="manual-note">The phase plot is narrowband by definition. A phase difference can be converted to a time shift only at a specific frequency, so one single delay should not be treated as a broadband alignment solution.</div>
+            </article>
+        `
+    },
+    fr: {
+        flag: '🇫🇷',
+        label: 'Français',
+        html: `
+            <article class="manual-card">
+                <h3>Introduction</h3>
+                <p>Ghost Interference Explorer est un outil interactif de sismique marine destiné à étudier la combinaison entre l'arrivée directe et le ghost réfléchi à la surface. Il sert à comparer rapidement des géométries et à produire des figures prêtes pour un rapport.</p>
+                <ul>
+                    <li><strong>Sorties principales :</strong> SPL, phase relative au champ résultant à l'offset nul, délai du ghost, fréquences d'encoche, cartes 2D et vues 3D.</li>
+                    <li><strong>Usage principal :</strong> comparer la géométrie à <code>X = 0</code> avec des lignes décalées pour comprendre les différences de niveau et de phase.</li>
+                    <li><strong>Référence de phase :</strong> la phase est référencée au champ résultant total à <code>X = 0</code>, et non à l'onde directe seule.</li>
+                </ul>
+            </article>
+            <article class="manual-card">
+                <h3>Physique Et Mathématiques</h3>
+                <p>Le modèle utilise une trajectoire directe et une trajectoire ghost provenant d'une source image à la surface. La géométrie dépend de la profondeur de source <code>d</code>, de la profondeur d'observation <code>Z</code>, de l'offset horizontal <code>X</code>, de la vitesse du son <code>c</code> et de la réflectivité <code>R</code>.</p>
+                <div class="manual-formula"><code>r_direct = sqrt((Z - d)^2 + X^2)
+r_ghost  = sqrt((Z + d)^2 + X^2)
+Delta r  = r_ghost - r_direct
+lambda   = c / f</code></div>
+                <div class="manual-formula"><code>A_direct = 1 / r_direct
+A_ghost  = R / r_ghost
+phi_path = 2 * pi * Delta r / lambda
+phi_direct = 2 * pi * r_direct / lambda</code></div>
+                <div class="manual-formula"><code>real = A_direct - A_ghost * cos(phi_path)
+imag = A_ghost * sin(phi_path)
+resultant = sqrt(real^2 + imag^2)
+SPL = 20 * log10(resultant)</code></div>
+                <p><strong>Resultant Phase re X=0</strong> représente la phase du champ total à la géométrie courante moins la phase du champ total à <code>X = 0</code>.</p>
+                <p><strong>Ghost Delay at Current X</strong> vaut <code>Delta r / c</code> et est affiché en millisecondes. Les fréquences d'encoche utilisent <code>f_n = n * c / Delta r</code>.</p>
+            </article>
+            <article class="manual-card">
+                <h3>Utilisation</h3>
+                <div class="manual-grid">
+                    <div>
+                        <h4>Onglets Principaux</h4>
+                        <ul>
+                            <li><strong>SPL vs Variable :</strong> une variable est balayée et les trois autres restent fixes.</li>
+                            <li><strong>Freq x Source Depth</strong>, <strong>Spatial Field (X, Z)</strong> et <strong>3D View :</strong> inspection des champs SPL ou phase relative.</li>
+                            <li><strong>XLSX Export :</strong> export de la courbe actuelle et des courbes sauvegardées.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Flux Recommandé</h4>
+                        <ul>
+                            <li>Choisir la variable balayée puis définir la géométrie fixe.</li>
+                            <li>Utiliser <strong>Save Current</strong> pour enregistrer des courbes de comparaison.</li>
+                            <li>Utiliser <strong>Compare SPL</strong> pour comparer chaque courbe restante à la première courbe sauvegardée ayant la même variable balayée.</li>
+                            <li>Survoler la courbe pour mettre à jour le panneau de lecture au point inspecté.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="manual-note">La phase est une quantité bande étroite. Une différence de phase ne devient un décalage temporel unique qu'à une fréquence donnée.</div>
+            </article>
+        `
+    },
+    es: {
+        flag: '🇪🇸',
+        label: 'Español',
+        html: `
+            <article class="manual-card">
+                <h3>Introducción</h3>
+                <p>Ghost Interference Explorer es una herramienta interactiva de sísmica marina para estudiar cómo se combinan la llegada directa y el ghost reflejado en la superficie. Está pensada para comparación rápida de geometrías y exportación directa a informes.</p>
+                <ul>
+                    <li><strong>Salidas principales:</strong> SPL, fase relativa al campo resultante en offset cero, retardo del ghost, frecuencias de notch y patrones 2D o 3D.</li>
+                    <li><strong>Uso principal:</strong> comparar la geometría en <code>X = 0</code> con líneas desplazadas para entender diferencias de nivel y fase.</li>
+                    <li><strong>Referencia de fase:</strong> la fase se referencia al campo resultante total en <code>X = 0</code>, no a la onda directa sola.</li>
+                </ul>
+            </article>
+            <article class="manual-card">
+                <h3>Física Y Matemáticas</h3>
+                <p>El modelo usa una trayectoria directa y una trayectoria ghost proveniente de una fuente imagen en la superficie. La geometría depende de la profundidad de fuente <code>d</code>, profundidad de observación <code>Z</code>, offset horizontal <code>X</code>, velocidad del sonido <code>c</code> y reflectividad <code>R</code>.</p>
+                <div class="manual-formula"><code>r_direct = sqrt((Z - d)^2 + X^2)
+r_ghost  = sqrt((Z + d)^2 + X^2)
+Delta r  = r_ghost - r_direct
+lambda   = c / f</code></div>
+                <div class="manual-formula"><code>A_direct = 1 / r_direct
+A_ghost  = R / r_ghost
+phi_path = 2 * pi * Delta r / lambda
+phi_direct = 2 * pi * r_direct / lambda</code></div>
+                <div class="manual-formula"><code>real = A_direct - A_ghost * cos(phi_path)
+imag = A_ghost * sin(phi_path)
+resultant = sqrt(real^2 + imag^2)
+SPL = 20 * log10(resultant)</code></div>
+                <p><strong>Resultant Phase re X=0</strong> es la fase del campo total en la geometría actual menos la fase del campo total en <code>X = 0</code>.</p>
+                <p><strong>Ghost Delay at Current X</strong> es <code>Delta r / c</code> y se muestra en milisegundos. Las frecuencias de notch siguen <code>f_n = n * c / Delta r</code>.</p>
+            </article>
+            <article class="manual-card">
+                <h3>Operación</h3>
+                <div class="manual-grid">
+                    <div>
+                        <h4>Pestañas Principales</h4>
+                        <ul>
+                            <li><strong>SPL vs Variable:</strong> se barre una variable y las otras tres quedan fijas.</li>
+                            <li><strong>Freq x Source Depth</strong>, <strong>Spatial Field (X, Z)</strong> y <strong>3D View:</strong> inspección de campos SPL o fase relativa.</li>
+                            <li><strong>XLSX Export:</strong> exporta la curva actual y las curvas guardadas.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Flujo Recomendado</h4>
+                        <ul>
+                            <li>Seleccione la variable de barrido y fije la geometría restante.</li>
+                            <li>Use <strong>Save Current</strong> para crear curvas de comparación.</li>
+                            <li>Use <strong>Compare SPL</strong> para comparar cada curva restante con la primera curva guardada que tenga la misma variable barrida.</li>
+                            <li>Pase el cursor sobre la curva para actualizar el panel de lectura del punto inspeccionado.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="manual-note">La fase es una cantidad de banda estrecha. Una diferencia de fase solo equivale a un desplazamiento temporal único en una frecuencia concreta.</div>
+            </article>
+        `
+    },
+    de: {
+        flag: '🇩🇪',
+        label: 'Deutsch',
+        html: `
+            <article class="manual-card">
+                <h3>Einleitung</h3>
+                <p>Ghost Interference Explorer ist ein interaktives Werkzeug fur die marine Seismik zur Untersuchung der Uberlagerung von Direktankunft und oberflachenreflektiertem Ghost. Es ist fur schnellen Geometrievergleich und fur exportierbare Abbildungen gedacht.</p>
+                <ul>
+                    <li><strong>Wesentliche Ausgaben:</strong> SPL, Phase relativ zum resultierenden Feld bei Null-Offset, Ghost-Verzogerung, Notch-Frequenzen sowie 2D- und 3D-Muster.</li>
+                    <li><strong>Typischer Einsatz:</strong> Vergleich zwischen <code>X = 0</code> und versetzten Linien, um Pegel- und Phasenunterschiede zu beurteilen.</li>
+                    <li><strong>Phasenreferenz:</strong> die Phase wird auf das gesamte resultierende Feld bei <code>X = 0</code> bezogen, nicht nur auf die Direktwelle.</li>
+                </ul>
+            </article>
+            <article class="manual-card">
+                <h3>Physik Und Mathematik</h3>
+                <p>Das Modell verwendet einen direkten Strahlengang und einen Ghost-Strahlengang von einer Spiegelquelle an der Oberflache. Die Geometrie wird durch Quellentiefe <code>d</code>, Beobachtungstiefe <code>Z</code>, Horizontaloffset <code>X</code>, Schallgeschwindigkeit <code>c</code> und Reflektivitat <code>R</code> beschrieben.</p>
+                <div class="manual-formula"><code>r_direct = sqrt((Z - d)^2 + X^2)
+r_ghost  = sqrt((Z + d)^2 + X^2)
+Delta r  = r_ghost - r_direct
+lambda   = c / f</code></div>
+                <div class="manual-formula"><code>A_direct = 1 / r_direct
+A_ghost  = R / r_ghost
+phi_path = 2 * pi * Delta r / lambda
+phi_direct = 2 * pi * r_direct / lambda</code></div>
+                <div class="manual-formula"><code>real = A_direct - A_ghost * cos(phi_path)
+imag = A_ghost * sin(phi_path)
+resultant = sqrt(real^2 + imag^2)
+SPL = 20 * log10(resultant)</code></div>
+                <p><strong>Resultant Phase re X=0</strong> ist die Phase des gesamten resultierenden Feldes an der aktuellen Geometrie minus der Phase des gesamten Feldes bei <code>X = 0</code>.</p>
+                <p><strong>Ghost Delay at Current X</strong> ist <code>Delta r / c</code> und wird in Millisekunden angezeigt. Die Notch-Frequenzen folgen <code>f_n = n * c / Delta r</code>.</p>
+            </article>
+            <article class="manual-card">
+                <h3>Bedienung</h3>
+                <div class="manual-grid">
+                    <div>
+                        <h4>Wichtige Registerkarten</h4>
+                        <ul>
+                            <li><strong>SPL vs Variable:</strong> eine Variable wird durchfahren, drei bleiben fest.</li>
+                            <li><strong>Freq x Source Depth</strong>, <strong>Spatial Field (X, Z)</strong> und <strong>3D View:</strong> Darstellung von SPL oder relativer Phase.</li>
+                            <li><strong>XLSX Export:</strong> exportiert die aktuelle Kurve und gespeicherte Vergleichskurven.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Empfohlener Ablauf</h4>
+                        <ul>
+                            <li>Die Sweep-Variable wahlen und die feste Geometrie setzen.</li>
+                            <li>Mit <strong>Save Current</strong> Vergleichskurven speichern.</li>
+                            <li>Mit <strong>Compare SPL</strong> alle verbleibenden Kurven gegen die erste gespeicherte Kurve mit derselben Sweep-Variable vergleichen.</li>
+                            <li>Mit dem Mauszeiger uber die Kurve fahren, um das Readout fur den inspizierten Punkt zu aktualisieren.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="manual-note">Phase ist eine schmalbandige Grosse. Ein Phasenunterschied entspricht nur bei einer bestimmten Frequenz einer eindeutigen Zeitverschiebung.</div>
+            </article>
+        `
+    },
+    no: {
+        flag: '🇳🇴',
+        label: 'Norsk',
+        html: `
+            <article class="manual-card">
+                <h3>Innledning</h3>
+                <p>Ghost Interference Explorer er et interaktivt verktoy for marin seismikk som viser hvordan direkte ankomst og et overflatereflektert ghost-signal kombineres. Programmet er laget for rask sammenligning av geometrier og eksport av figurer til rapporter.</p>
+                <ul>
+                    <li><strong>Viktige resultater:</strong> SPL, fase relativt til resultantfeltet ved null offset, ghost-forsinkelse, notch-frekvenser og 2D- eller 3D-monstrer.</li>
+                    <li><strong>Typisk bruk:</strong> sammenligne geometri ved <code>X = 0</code> med forskyvde linjer for a vurdere forskjeller i niva og fase.</li>
+                    <li><strong>Fasereferanse:</strong> fasen refereres til det totale resultantfeltet ved <code>X = 0</code>, ikke bare til direktebanen.</li>
+                </ul>
+            </article>
+            <article class="manual-card">
+                <h3>Fysikk Og Matematikk</h3>
+                <p>Modellen bruker en direkte bane og en ghost-bane fra en bildkilde ved overflaten. Geometrien styres av kildedyp <code>d</code>, observasjonsdyp <code>Z</code>, horisontal offset <code>X</code>, lydhastighet <code>c</code> og reflektivitet <code>R</code>.</p>
+                <div class="manual-formula"><code>r_direct = sqrt((Z - d)^2 + X^2)
+r_ghost  = sqrt((Z + d)^2 + X^2)
+Delta r  = r_ghost - r_direct
+lambda   = c / f</code></div>
+                <div class="manual-formula"><code>A_direct = 1 / r_direct
+A_ghost  = R / r_ghost
+phi_path = 2 * pi * Delta r / lambda
+phi_direct = 2 * pi * r_direct / lambda</code></div>
+                <div class="manual-formula"><code>real = A_direct - A_ghost * cos(phi_path)
+imag = A_ghost * sin(phi_path)
+resultant = sqrt(real^2 + imag^2)
+SPL = 20 * log10(resultant)</code></div>
+                <p><strong>Resultant Phase re X=0</strong> er fasen til hele resultantfeltet i gjeldende geometri minus fasen til hele feltet ved <code>X = 0</code>.</p>
+                <p><strong>Ghost Delay at Current X</strong> er <code>Delta r / c</code> og vises i millisekunder. Notch-frekvenser beregnes med <code>f_n = n * c / Delta r</code>.</p>
+            </article>
+            <article class="manual-card">
+                <h3>Bruk</h3>
+                <div class="manual-grid">
+                    <div>
+                        <h4>Hovedfaner</h4>
+                        <ul>
+                            <li><strong>SPL vs Variable:</strong> sweep en variabel og hold de tre andre faste.</li>
+                            <li><strong>Freq x Source Depth</strong>, <strong>Spatial Field (X, Z)</strong> og <strong>3D View:</strong> vis SPL eller relativ fase.</li>
+                            <li><strong>XLSX Export:</strong> eksporter aktuell kurve og lagrede sammenligningskurver.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Anbefalt Arbeidsflyt</h4>
+                        <ul>
+                            <li>Velg sweep-variabel og sett fast geometri.</li>
+                            <li>Bruk <strong>Save Current</strong> for a bygge sammenligningskurver.</li>
+                            <li>Bruk <strong>Compare SPL</strong> for a sammenligne alle resterende kurver med den forste lagrede kurven som har samme sweep-variabel.</li>
+                            <li>Hold musepekeren over kurven for a oppdatere avlesningen for punktet som inspiseres.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="manual-note">Fase er en smalbandsstorrelse. En faseforskjell tilsvarer bare en entydig tidsforsinkelse ved en bestemt frekvens.</div>
+            </article>
+        `
+    },
+    sv: {
+        flag: '🇸🇪',
+        label: 'Svenska',
+        html: `
+            <article class="manual-card">
+                <h3>Introduktion</h3>
+                <p>Ghost Interference Explorer ar ett interaktivt verktyg for marin seismik som visar hur direkt ankomst och ett ytreferat ghost-bidrag kombineras. Programmet ar gjort for snabb geometrijamforelse och export till rapporter.</p>
+                <ul>
+                    <li><strong>Viktiga resultat:</strong> SPL, fas relativt resultantfaltet vid noll offset, ghost-fordrojning, notch-frekvenser samt 2D- och 3D-monster.</li>
+                    <li><strong>Huvudanvandning:</strong> jamfora fallet vid <code>X = 0</code> med forskjutna linjer for att bedoma skillnader i niva och fas.</li>
+                    <li><strong>Fasreferens:</strong> fasen refereras till hela resultantfaltet vid <code>X = 0</code>, inte bara till direktvagen.</li>
+                </ul>
+            </article>
+            <article class="manual-card">
+                <h3>Fysik Och Matematik</h3>
+                <p>Modellen anvander en direkt bana och en ghost-bana fran en bildkalla vid ytan. Geometrin beskrivs av kallans djup <code>d</code>, observationsdjup <code>Z</code>, horisontellt offset <code>X</code>, ljudhastighet <code>c</code> och reflektivitet <code>R</code>.</p>
+                <div class="manual-formula"><code>r_direct = sqrt((Z - d)^2 + X^2)
+r_ghost  = sqrt((Z + d)^2 + X^2)
+Delta r  = r_ghost - r_direct
+lambda   = c / f</code></div>
+                <div class="manual-formula"><code>A_direct = 1 / r_direct
+A_ghost  = R / r_ghost
+phi_path = 2 * pi * Delta r / lambda
+phi_direct = 2 * pi * r_direct / lambda</code></div>
+                <div class="manual-formula"><code>real = A_direct - A_ghost * cos(phi_path)
+imag = A_ghost * sin(phi_path)
+resultant = sqrt(real^2 + imag^2)
+SPL = 20 * log10(resultant)</code></div>
+                <p><strong>Resultant Phase re X=0</strong> ar fasen hos hela resultantfaltet i den aktuella geometrin minus fasen hos hela faltet vid <code>X = 0</code>.</p>
+                <p><strong>Ghost Delay at Current X</strong> ar <code>Delta r / c</code> och visas i millisekunder. Notch-frekvenser beraknas som <code>f_n = n * c / Delta r</code>.</p>
+            </article>
+            <article class="manual-card">
+                <h3>Anvandning</h3>
+                <div class="manual-grid">
+                    <div>
+                        <h4>Huvudflikar</h4>
+                        <ul>
+                            <li><strong>SPL vs Variable:</strong> svep en variabel och hall de tre andra fasta.</li>
+                            <li><strong>Freq x Source Depth</strong>, <strong>Spatial Field (X, Z)</strong> och <strong>3D View:</strong> visa SPL eller relativ fas.</li>
+                            <li><strong>XLSX Export:</strong> exportera aktuell kurva och sparade jamforelsekurvor.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Rekommenderat Arbetsflode</h4>
+                        <ul>
+                            <li>Valj svepvariabel och stall in den fasta geometrin.</li>
+                            <li>Anvand <strong>Save Current</strong> for att bygga jamforelsekurvor.</li>
+                            <li>Anvand <strong>Compare SPL</strong> for att jamfora alla aterstaende kurvor mot den forsta sparade kurvan med samma svepvariabel.</li>
+                            <li>Hall muspekaren over kurvan for att uppdatera avlasningen for den inspekterade punkten.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="manual-note">Fas ar en smalbandsstorhet. En fasdifferens motsvarar bara en entydig tidsforskjutning vid en bestamd frekvens.</div>
+            </article>
+        `
+    },
+    pt: {
+        flag: '🇵🇹',
+        label: 'Português',
+        html: `
+            <article class="manual-card">
+                <h3>Introdução</h3>
+                <p>Ghost Interference Explorer é uma ferramenta interativa de sismica marinha para estudar como a chegada direta e o ghost refletido na superficie se combinam. O programa foi feito para comparações rapidas de geometria e exportação para relatórios.</p>
+                <ul>
+                    <li><strong>Saídas principais:</strong> SPL, fase relativa ao campo resultante em offset zero, atraso do ghost, frequências de notch e padrões 2D ou 3D.</li>
+                    <li><strong>Uso principal:</strong> comparar a geometria em <code>X = 0</code> com linhas deslocadas para entender diferenças de nivel e fase.</li>
+                    <li><strong>Referência de fase:</strong> a fase é referida ao campo resultante total em <code>X = 0</code>, e não apenas à onda direta.</li>
+                </ul>
+            </article>
+            <article class="manual-card">
+                <h3>Física E Matemática</h3>
+                <p>O modelo usa um percurso direto e um percurso ghost proveniente de uma fonte imagem na superficie. A geometria depende da profundidade da fonte <code>d</code>, profundidade de observação <code>Z</code>, afastamento horizontal <code>X</code>, velocidade do som <code>c</code> e refletividade <code>R</code>.</p>
+                <div class="manual-formula"><code>r_direct = sqrt((Z - d)^2 + X^2)
+r_ghost  = sqrt((Z + d)^2 + X^2)
+Delta r  = r_ghost - r_direct
+lambda   = c / f</code></div>
+                <div class="manual-formula"><code>A_direct = 1 / r_direct
+A_ghost  = R / r_ghost
+phi_path = 2 * pi * Delta r / lambda
+phi_direct = 2 * pi * r_direct / lambda</code></div>
+                <div class="manual-formula"><code>real = A_direct - A_ghost * cos(phi_path)
+imag = A_ghost * sin(phi_path)
+resultant = sqrt(real^2 + imag^2)
+SPL = 20 * log10(resultant)</code></div>
+                <p><strong>Resultant Phase re X=0</strong> é a fase do campo resultante total na geometria atual menos a fase do campo total em <code>X = 0</code>.</p>
+                <p><strong>Ghost Delay at Current X</strong> é <code>Delta r / c</code> e é mostrado em milissegundos. As frequências de notch seguem <code>f_n = n * c / Delta r</code>.</p>
+            </article>
+            <article class="manual-card">
+                <h3>Operação</h3>
+                <div class="manual-grid">
+                    <div>
+                        <h4>Separadores Principais</h4>
+                        <ul>
+                            <li><strong>SPL vs Variable:</strong> varre uma variável e mantém as outras três fixas.</li>
+                            <li><strong>Freq x Source Depth</strong>, <strong>Spatial Field (X, Z)</strong> e <strong>3D View:</strong> mostram SPL ou fase relativa.</li>
+                            <li><strong>XLSX Export:</strong> exporta a curva atual e as curvas guardadas.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Fluxo Recomendado</h4>
+                        <ul>
+                            <li>Escolha a variável varrida e defina a geometria fixa.</li>
+                            <li>Use <strong>Save Current</strong> para criar curvas de comparação.</li>
+                            <li>Use <strong>Compare SPL</strong> para comparar cada curva restante com a primeira curva guardada que tenha a mesma variável varrida.</li>
+                            <li>Passe o cursor sobre a curva para atualizar o painel de leitura no ponto inspecionado.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="manual-note">A fase é uma quantidade de banda estreita. Uma diferença de fase só corresponde a um atraso temporal único numa frequência específica.</div>
+            </article>
+        `
+    }
+};
+const MANUAL_ORDER = ['en', 'fr', 'es', 'de', 'no', 'sv', 'pt'];
+
+const PLOTLY_LAYOUT_BASE = {
+    paper_bgcolor: '#1a1a2e',
+    plot_bgcolor: '#16213e',
+    font: { color: '#e0e0e0', family: 'Segoe UI, sans-serif', size: 12 },
+    margin: { t: 50, r: 30, b: 60, l: 70 },
+    xaxis: { gridcolor: '#2a2a4a', zerolinecolor: '#3a3a5a', linecolor: '#2a2a4a' },
+    yaxis: { gridcolor: '#2a2a4a', zerolinecolor: '#3a3a5a', linecolor: '#2a2a4a' },
+};
+
+// ============ APPLICATION STATE ============
+const state = {
+    activeTab: 0,
+    c: DEFAULT_C,
+    R: DEFAULT_R,
+    resolutionScale: DEFAULT_RESOLUTION_SCALE,
+    tab0: {
+        sweepVar: 'sourceDepth',
+        freq: 2, sourceDepth: 20, waterDepth: 500, horizOffset: 0,
+        sweepMin: 10, sweepMax: 30, sweepPts: 50,
+        savedCurves: [],
+        inspectX: null,
+        showPhase: true,
+        compareMode: false
+    },
+    tab2: { waterDepth: 500, horizOffset: 0, lockedRange: { spl: null, phase: null } },
+    tab3: { freq: 2, sourceDepth: 20, lockedRange: { spl: null, phase: null } },
+    tab4: {
+        mode: 'freqDepth',
+        // freqDepth params
+        fd_waterDepth: 500, fd_horizOffset: 0,
+        // spatial params
+        sp_freq: 2, sp_sourceDepth: 20,
+        // radiation params
+        rad_freq: 20, rad_sourceDepth: 20, rad_range: 500
+    },
+    chartsInitialized: [false, false, false, false, false]
+};
+
+const sweepDefaults = {
+    freq:        { min: 0.5, max: 100, step: 0.5, pts: 200, unit: 'Hz' },
+    sourceDepth: { min: 5,   max: 1000,step: 1,   pts: 50,  unit: 'm' },
+    waterDepth:  { min: 50,  max: 5000,step: 50,  pts: 50,  unit: 'm' },
+    horizOffset: { min: 0,   max: 5000,step: 50,  pts: 50,  unit: 'm' },
+};
+
+const sweepLabels = {
+    freq: 'Frequency (Hz)',
+    sourceDepth: 'Source Depth (m)',
+    waterDepth: 'Water Depth (m)',
+    horizOffset: 'Horizontal Offset (m)'
+};
+
+function wrapDegrees(deg) {
+    while (deg > 180) deg -= 360;
+    while (deg < -180) deg += 360;
+    return deg;
+}
+
+// ============ CORE COMPUTATION ENGINE ============
+function computeFieldState(freq, sourceDepth, waterDepth, horizOffset, c, R) {
+    const dzDirect = waterDepth - sourceDepth;
+    const rDirect = Math.sqrt(dzDirect * dzDirect + horizOffset * horizOffset);
+    if (rDirect < 1e-10) {
+        return {
+            rDirect,
+            rGhost: waterDepth + sourceDepth,
+            deltaR: 2 * sourceDepth,
+            wavelength: c / freq,
+            aDirect: Infinity,
+            aGhost: 0,
+            resultant: 0,
+            phaseRadians: 0
+        };
+    }
+
+    const dzGhost = waterDepth + sourceDepth;
+    const rGhost = Math.sqrt(dzGhost * dzGhost + horizOffset * horizOffset);
+    const deltaR = rGhost - rDirect;
+    const wavelength = c / freq;
+    const pathPhase = 2 * Math.PI * deltaR / wavelength;
+    const directPhase = 2 * Math.PI * rDirect / wavelength;
+    const aDirect = 1 / rDirect;
+    const aGhost = R / rGhost;
+    const relativeReal = aDirect - aGhost * Math.cos(pathPhase);
+    const relativeImag = aGhost * Math.sin(pathPhase);
+    const resultant = Math.sqrt(relativeReal * relativeReal + relativeImag * relativeImag);
+    const phaseRadians = Math.atan2(relativeImag, relativeReal) - directPhase;
+
+    return {
+        rDirect,
+        rGhost,
+        deltaR,
+        wavelength,
+        aDirect,
+        aGhost,
+        resultant,
+        phaseRadians
+    };
+}
+
+function computeSPL(freq, sourceDepth, waterDepth, horizOffset, c, R) {
+    const field = computeFieldState(freq, sourceDepth, waterDepth, horizOffset, c, R);
+    if (field.resultant <= 0) return -200;
+    return 20 * Math.log10(field.resultant);
+}
+
+function computeSPLAndPhase(freq, sourceDepth, waterDepth, horizOffset, c, R) {
+    const field = computeFieldState(freq, sourceDepth, waterDepth, horizOffset, c, R);
+    const spl = field.resultant <= 0 ? -200 : 20 * Math.log10(field.resultant);
+    const phase = wrapDegrees(field.phaseRadians * 180 / Math.PI);
+    return { spl, phase };
+}
+
+// Compute phase relative to directly-below reference (X=0) at same depth
+function computeRelativePhase(freq, sourceDepth, waterDepth, horizOffset, c, R) {
+    const ref = computeFieldState(freq, sourceDepth, waterDepth, 0, c, R);
+    const pt = computeFieldState(freq, sourceDepth, waterDepth, horizOffset, c, R);
+    return wrapDegrees((pt.phaseRadians - ref.phaseRadians) * 180 / Math.PI);
+}
+
+function computePathDetails(freq, sourceDepth, waterDepth, horizOffset, c, R) {
+    const dzDirect = waterDepth - sourceDepth;
+    const rDirect = Math.sqrt(dzDirect * dzDirect + horizOffset * horizOffset);
+    const dzGhost = waterDepth + sourceDepth;
+    const rGhost = Math.sqrt(dzGhost * dzGhost + horizOffset * horizOffset);
+    const deltaR = rGhost - rDirect;
+    const wavelength = c / freq;
+    const phase = 2 * Math.PI * deltaR / wavelength;
+    const ghostDelayMs = (deltaR / c) * 1000;
+    const aDirect = rDirect > 0 ? 1 / rDirect : Infinity;
+    const aGhost = rGhost > 0 ? R / rGhost : 0;
+    return { rDirect, rGhost, deltaR, wavelength, phase, ghostDelayMs, aDirect, aGhost };
+}
+
+function computeGhostNotchFreqs(deltaR, c, maxFreq) {
+    if (deltaR <= 0) return [];
+    const notches = [];
+    for (let n = 1; ; n++) {
+        const f = n * c / deltaR;
+        if (f > maxFreq) break;
+        notches.push({ n, freq: f });
+    }
+    return notches;
+}
+
+// ============ UTILITY ============
+function linspace(min, max, n) {
+    if (n <= 1) return [min];
+    const arr = [];
+    const step = (max - min) / (n - 1);
+    for (let i = 0; i < n; i++) arr.push(min + i * step);
+    return arr;
+}
+
+function logspace(min, max, n) {
+    const logMin = Math.log10(Math.max(min, 1e-10));
+    const logMax = Math.log10(Math.max(max, 1e-10));
+    return linspace(logMin, logMax, n).map(v => Math.pow(10, v));
+}
+
+function getChartSize(tabIdx) {
+    const el = document.getElementById('chart-' + tabIdx);
+    if (!el) return { width: 900, height: 600 };
+    const rect = el.getBoundingClientRect();
+    const chartArea = el.closest('.chart-area');
+    const areaRect = chartArea ? chartArea.getBoundingClientRect() : null;
+    const readout = chartArea ? chartArea.querySelector('.readout-panel') : null;
+    const readoutRect = readout ? readout.getBoundingClientRect() : null;
+    // If the container hasn't laid out yet, estimate from the actual remaining viewport.
+    const fallbackTop = areaRect && areaRect.top > 0 ? areaRect.top : rect.top;
+    const availableWidth = areaRect && areaRect.width > 50
+        ? areaRect.width - (readoutRect ? readoutRect.width : 0)
+        : rect.width;
+    const availableHeight = areaRect && areaRect.height > 50
+        ? areaRect.height
+        : Math.max(window.innerHeight - fallbackTop - 16, 360);
+    const w = availableWidth > 50 ? availableWidth : Math.max(window.innerWidth - 40, 300);
+    const h = availableHeight > 50 ? availableHeight : Math.max(window.innerHeight - fallbackTop - 16, 360);
+    return { width: Math.round(w), height: Math.round(h) };
+}
+
+function fmt(v, decimals) {
+    if (typeof decimals === 'undefined') decimals = 2;
+    if (!isFinite(v)) return '—';
+    return v.toFixed(decimals);
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function readBoundedNumber(id, fallback) {
+    const el = document.getElementById(id);
+    const raw = parseFloat(el.value);
+    let value = Number.isFinite(raw) ? raw : fallback;
+    const min = el.min !== '' ? parseFloat(el.min) : null;
+    const max = el.max !== '' ? parseFloat(el.max) : null;
+    if (Number.isFinite(min)) value = Math.max(min, value);
+    if (Number.isFinite(max)) value = Math.min(max, value);
+    el.value = value;
+    return value;
+}
+
+function readIntegerInRange(id, fallback, min, max) {
+    const el = document.getElementById(id);
+    const raw = parseInt(el.value, 10);
+    const value = clamp(Number.isFinite(raw) ? raw : fallback, min, max);
+    el.value = value;
+    return value;
+}
+
+function getResponsiveSweepPts() {
+    const width = getChartSize(0).width;
+    return clamp(Math.round((width / 12) * state.resolutionScale), 5, 1000);
+}
+
+function syncSweepPtsToChartWidth() {
+    const pts = getResponsiveSweepPts();
+    state.tab0.sweepPts = pts;
+    const input = document.getElementById('sweep-pts');
+    if (input) input.value = pts;
+    return pts;
+}
+
+function getResponsiveGridCount(pixels, pixelsPerSample, min, max) {
+    return clamp(Math.round((pixels / pixelsPerSample) * state.resolutionScale), min, max);
+}
+
+function getTab0ReadoutParams() {
+    const t = state.tab0;
+    const params = {
+        freq: t.freq,
+        sourceDepth: t.sourceDepth,
+        waterDepth: t.waterDepth,
+        horizOffset: t.horizOffset
+    };
+    if (t.inspectX !== null && Number.isFinite(t.inspectX)) {
+        params[t.sweepVar] = t.inspectX;
+    }
+    return params;
+}
+
+function attachTab0Interactions() {
+    const el = document.getElementById('chart-0');
+    if (!el || el.__ghostReadoutBound) return;
+    const updateFromMouse = (event) => {
+        const layout = el._fullLayout;
+        if (!layout || !layout.xaxis || typeof layout.xaxis.p2l !== 'function') return;
+        const plotRect = el.getBoundingClientRect();
+        const xInPlot = event.clientX - plotRect.left - layout.margin.l;
+        const plotWidth = plotRect.width - layout.margin.l - layout.margin.r;
+        if (xInPlot < 0 || xInPlot > plotWidth) return;
+        const dataX = layout.xaxis.p2l(xInPlot);
+        if (!Number.isFinite(dataX)) return;
+        state.tab0.inspectX = clamp(dataX, state.tab0.sweepMin, state.tab0.sweepMax);
+        updateReadout();
+    };
+
+    el.addEventListener('mousemove', updateFromMouse);
+
+    el.__ghostReadoutBound = true;
+}
+
+function deepLayout(overrides) {
+    const base = JSON.parse(JSON.stringify(PLOTLY_LAYOUT_BASE));
+    for (const key of Object.keys(overrides)) {
+        if (typeof overrides[key] === 'object' && !Array.isArray(overrides[key]) && base[key]) {
+            Object.assign(base[key], overrides[key]);
+        } else {
+            base[key] = overrides[key];
+        }
+    }
+    return base;
+}
+
+function getPersistedState() {
+    return {
+        c: state.c,
+        R: state.R,
+        resolutionScale: state.resolutionScale,
+        activeTab: state.activeTab,
+        tab0: state.tab0,
+        tab2: state.tab2,
+        tab3: state.tab3,
+        tab4: state.tab4
+    };
+}
+
+function savePersistentState() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(getPersistedState()));
+    } catch (err) {
+        console.warn('Unable to save Ghost Explorer state:', err);
+    }
+}
+
+function loadPersistentState() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+            if (Number.isFinite(parsed.c)) state.c = parsed.c;
+            if (Number.isFinite(parsed.R)) state.R = parsed.R;
+            if (Number.isFinite(parsed.resolutionScale)) state.resolutionScale = parsed.resolutionScale;
+            if (Number.isInteger(parsed.activeTab) && parsed.activeTab >= 0 && parsed.activeTab <= 5) {
+                state.activeTab = parsed.activeTab;
+            }
+            ['tab0', 'tab2', 'tab3', 'tab4'].forEach(key => {
+                if (parsed[key] && typeof parsed[key] === 'object') {
+                    Object.assign(state[key], parsed[key]);
+                }
+            });
+            if (!['freqDepth', 'spatial', 'radiation'].includes(state.tab4.mode)) {
+                state.tab4.mode = 'freqDepth';
+            }
+        }
+    } catch (err) {
+        console.warn('Unable to load Ghost Explorer state:', err);
+    }
+}
+
+function syncUIFromState() {
+    document.getElementById('sl-c').value = state.c;
+    document.getElementById('num-c').value = state.c;
+    document.getElementById('val-c').textContent = state.c;
+    document.getElementById('sl-R').value = state.R;
+    document.getElementById('num-R').value = state.R;
+    document.getElementById('val-R').textContent = state.R.toFixed(2);
+    document.getElementById('sl-resolution').value = state.resolutionScale;
+    document.getElementById('num-resolution').value = state.resolutionScale;
+    document.getElementById('val-resolution').textContent = state.resolutionScale.toFixed(1) + 'x';
+
+    const t0 = state.tab0;
+    document.getElementById('sweep-var').value = t0.sweepVar;
+    ['freq','sourceDepth','waterDepth','horizOffset'].forEach(v => {
+        document.getElementById('sl-t0-' + v).value = t0[v];
+        document.getElementById('num-t0-' + v).value = t0[v];
+        document.getElementById('val-t0-' + v).textContent = v === 'freq' ? t0[v] : Math.round(t0[v]);
+    });
+    document.getElementById('sweep-min').value = t0.sweepMin;
+    document.getElementById('sweep-max').value = t0.sweepMax;
+    document.getElementById('sweep-pts').value = t0.sweepPts;
+    syncTab0PlotButtons();
+
+    const t2 = state.tab2;
+    document.getElementById('sl-t2-waterDepth').value = t2.waterDepth;
+    document.getElementById('num-t2-waterDepth').value = t2.waterDepth;
+    document.getElementById('val-t2-waterDepth').textContent = Math.round(t2.waterDepth);
+    document.getElementById('sl-t2-horizOffset').value = t2.horizOffset;
+    document.getElementById('num-t2-horizOffset').value = t2.horizOffset;
+    document.getElementById('val-t2-horizOffset').textContent = Math.round(t2.horizOffset);
+
+    const t3 = state.tab3;
+    document.getElementById('sl-t3-freq').value = t3.freq;
+    document.getElementById('num-t3-freq').value = t3.freq;
+    document.getElementById('val-t3-freq').textContent = t3.freq;
+    document.getElementById('sl-t3-sourceDepth').value = t3.sourceDepth;
+    document.getElementById('num-t3-sourceDepth').value = t3.sourceDepth;
+    document.getElementById('val-t3-sourceDepth').textContent = Math.round(t3.sourceDepth);
+
+    const t4 = state.tab4;
+    if (!['freqDepth', 'spatial', 'radiation'].includes(t4.mode)) {
+        t4.mode = 'freqDepth';
+    }
+    document.getElementById('t4-mode').value = t4.mode;
+    [
+        ['wd-fd', t4.fd_waterDepth], ['ho-fd', t4.fd_horizOffset],
+        ['f-sp', t4.sp_freq], ['sd-sp', t4.sp_sourceDepth],
+        ['f-rad', t4.rad_freq], ['sd-rad', t4.rad_sourceDepth], ['range-rad', t4.rad_range]
+    ].forEach(([suffix, value]) => {
+        document.getElementById('sl-t4-' + suffix).value = value;
+        document.getElementById('num-t4-' + suffix).value = value;
+        document.getElementById('val-t4-' + suffix).textContent = suffix.startsWith('f-') ? value : Math.round(value);
+    });
+}
+
+// ============ EMBEDDED MANUAL ============
+let currentManualLanguage = 'en';
+
+function renderManualLanguageList() {
+    const host = document.getElementById('manual-language-list');
+    if (!host) return;
+    host.innerHTML = MANUAL_ORDER.map(code => {
+        const manual = MANUALS[code];
+        return `
+            <button
+                type="button"
+                class="manual-lang-btn${code === currentManualLanguage ? ' active' : ''}"
+                data-manual-lang="${code}"
+                aria-pressed="${code === currentManualLanguage ? 'true' : 'false'}"
+                onclick="setManualLanguage('${code}')"
+            >
+                <span class="manual-lang-flag">${manual.flag}</span>
+                <span>${manual.label}</span>
+            </button>
+        `;
+    }).join('');
+}
+
+function setManualLanguage(code) {
+    if (!MANUALS[code]) return;
+    currentManualLanguage = code;
+    const manual = MANUALS[code];
+    const body = document.getElementById('manual-body');
+    const title = document.getElementById('manual-title');
+    const subtitle = document.getElementById('manual-subtitle');
+    if (body) {
+        body.innerHTML = manual.html;
+        body.scrollTop = 0;
+    }
+    if (title) title.textContent = 'User Manual';
+    if (subtitle) subtitle.textContent = `${manual.flag} ${manual.label}`;
+    document.querySelectorAll('.manual-lang-btn').forEach(btn => {
+        const active = btn.dataset.manualLang === code;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+}
+
+function openManual(code) {
+    if (code && MANUALS[code]) currentManualLanguage = code;
+    renderManualLanguageList();
+    setManualLanguage(currentManualLanguage);
+    const modal = document.getElementById('manual-modal');
+    if (!modal) return;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeManual() {
+    const modal = document.getElementById('manual-modal');
+    if (!modal) return;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function handleManualBackdropClick(event) {
+    if (event.target === event.currentTarget) {
+        closeManual();
+    }
+}
+
+function syncTab0PlotButtons() {
+    const showPhase = state.tab0.showPhase !== false;
+    document.getElementById('btn-t0-both').classList.toggle('btn-accent', showPhase);
+    document.getElementById('btn-t0-spl').classList.toggle('btn-accent', !showPhase);
+    syncTab0CompareButton();
+}
+
+function getCurveKey(curve) {
+    return `${curve.sweepVar || ''}|${curve.label || ''}`;
+}
+
+function getTab0ComparisonSetup(currentCurve) {
+    const t = state.tab0;
+    const activeCurve = currentCurve || buildCurrentTab0CurveRecord();
+    const savedSameSweep = t.savedCurves
+        .map(hydrateSavedCurve)
+        .filter(sc => sc.sweepVar === t.sweepVar);
+    if (savedSameSweep.length === 0) {
+        return { reference: null, curves: [], available: false, currentCurve: activeCurve };
+    }
+
+    const reference = savedSameSweep[0];
+    const seen = new Set([getCurveKey(reference)]);
+    const curves = [];
+
+    t.savedCurves.forEach((sc, idx) => {
+        const curve = hydrateSavedCurve(sc);
+        if (curve.sweepVar !== reference.sweepVar) return;
+        const key = getCurveKey(curve);
+        if (seen.has(key)) return;
+        seen.add(key);
+        curves.push({
+            curve,
+            color: CURVE_COLORS[idx % CURVE_COLORS.length],
+            isCurrent: false
+        });
+    });
+
+    const currentKey = getCurveKey(activeCurve);
+    if (activeCurve.sweepVar === reference.sweepVar && !seen.has(currentKey)) {
+        curves.push({
+            curve: activeCurve,
+            color: '#00b4d8',
+            isCurrent: true
+        });
+    }
+
+    return {
+        reference,
+        curves,
+        available: curves.length > 0,
+        currentCurve: activeCurve
+    };
+}
+
+function syncTab0CompareButton() {
+    const btn = document.getElementById('btn-t0-compare');
+    if (!btn) return;
+    const setup = getTab0ComparisonSetup();
+    if (!setup.available && state.tab0.compareMode) {
+        state.tab0.compareMode = false;
+    }
+    btn.textContent = state.tab0.compareMode ? 'Show Absolute SPL' : 'Compare SPL';
+    btn.classList.toggle('btn-accent', state.tab0.compareMode && setup.available);
+    btn.disabled = !setup.available && !state.tab0.compareMode;
+    btn.title = setup.available
+        ? `Compare SPL curves to first saved reference: ${setup.reference.label}`
+        : 'Save a reference curve and at least one additional curve to compare SPL levels';
+}
+
+function toggleTab0Comparison() {
+    const setup = getTab0ComparisonSetup();
+    if (!setup.available) return;
+    state.tab0.compareMode = !state.tab0.compareMode;
+    syncTab0CompareButton();
+    savePersistentState();
+    if (state.chartsInitialized[0] && typeof Plotly !== 'undefined') {
+        Plotly.purge('chart-0');
+        state.chartsInitialized[0] = false;
+    }
+    renderTab0();
+}
+
+function interpolateSeriesAt(xs, ys, xq) {
+    if (!Array.isArray(xs) || !Array.isArray(ys) || xs.length !== ys.length || xs.length === 0) return NaN;
+    if (xq < xs[0] || xq > xs[xs.length - 1]) return NaN;
+    if (xq === xs[0]) return ys[0];
+    if (xq === xs[xs.length - 1]) return ys[ys.length - 1];
+
+    let lo = 0;
+    let hi = xs.length - 1;
+    while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (xs[mid] <= xq) lo = mid;
+        else hi = mid;
+    }
+
+    const x0 = xs[lo];
+    const x1 = xs[hi];
+    const y0 = ys[lo];
+    const y1 = ys[hi];
+    if (!Number.isFinite(x0) || !Number.isFinite(x1) || !Number.isFinite(y0) || !Number.isFinite(y1)) return NaN;
+    if (Math.abs(x1 - x0) < 1e-12) return y0;
+    return y0 + (y1 - y0) * ((xq - x0) / (x1 - x0));
+}
+
+function buildRelativeSplSeries(referenceCurve, curve) {
+    const xs = [];
+    const ys = [];
+    for (let i = 0; i < referenceCurve.x.length; i++) {
+        const x = referenceCurve.x[i];
+        const refY = referenceCurve.y[i];
+        const curveY = interpolateSeriesAt(curve.x, curve.y, x);
+        if (!Number.isFinite(refY) || !Number.isFinite(curveY)) continue;
+        xs.push(x);
+        ys.push(curveY - refY);
+    }
+    return { x: xs, y: ys };
+}
+
+// ============ THROTTLED RENDER ============
+let rafPending = {};
+function throttledRender(tabIdx) {
+    if (rafPending[tabIdx]) return;
+    rafPending[tabIdx] = true;
+    requestAnimationFrame(() => {
+        try {
+            renderTab(tabIdx);
+        } catch (err) {
+            console.error(`Render failed for tab ${tabIdx}:`, err);
+        } finally {
+            rafPending[tabIdx] = false;
+        }
+    });
+}
+
+// ============ TAB SWITCHING ============
+function switchTab(idx) {
+    idx = Number(idx);
+    if (!Number.isInteger(idx) || idx === 1 || idx < 0 || idx > 5) {
+        idx = 0;
+    }
+    state.activeTab = idx;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.tab) === idx);
+    });
+    document.querySelectorAll('.tab-content').forEach(el => {
+        const tabIdx = Number((el.id || '').replace('tab-', ''));
+        el.classList.toggle('active', tabIdx === idx);
+    });
+    renderTab(idx);
+    // Plotly needs a resize after the container becomes visible
+    requestAnimationFrame(() => resizeActiveChart());
+}
+
+function onAdvancedChange() {
+    state.c = parseFloat(document.getElementById('sl-c').value);
+    state.R = parseFloat(document.getElementById('sl-R').value);
+    state.resolutionScale = parseFloat(document.getElementById('sl-resolution').value);
+    document.getElementById('val-c').textContent = state.c;
+    document.getElementById('val-R').textContent = state.R.toFixed(2);
+    document.getElementById('val-resolution').textContent = state.resolutionScale.toFixed(1) + 'x';
+    document.getElementById('num-c').value = state.c;
+    document.getElementById('num-R').value = state.R;
+    document.getElementById('num-resolution').value = state.resolutionScale;
+    savePersistentState();
+    throttledRender(state.activeTab);
+}
+
+function onAdvancedNumChange(param) {
+    if (param === 'c') {
+        const v = readBoundedNumber('num-c', state.c);
+        state.c = v;
+        document.getElementById('sl-c').value = v;
+        document.getElementById('val-c').textContent = v;
+    } else {
+        if (param === 'R') {
+            const v = readBoundedNumber('num-R', state.R);
+            state.R = v;
+            document.getElementById('sl-R').value = v;
+            document.getElementById('val-R').textContent = v.toFixed(2);
+        } else {
+            const v = readBoundedNumber('num-resolution', state.resolutionScale);
+            state.resolutionScale = v;
+            document.getElementById('sl-resolution').value = v;
+            document.getElementById('val-resolution').textContent = v.toFixed(1) + 'x';
+        }
+    }
+    savePersistentState();
+    throttledRender(state.activeTab);
+}
+
+// ============ TAB 0: SPL vs Variable ============
+function onSweepVarChange(resetRange) {
+    if (typeof resetRange === 'undefined') resetRange = true;
+    const sel = document.getElementById('sweep-var').value;
+    state.tab0.sweepVar = sel;
+    // Show/hide control groups
+    ['freq','sourceDepth','waterDepth','horizOffset'].forEach(v => {
+        document.getElementById('cg-' + v).classList.toggle('hidden', v === sel);
+    });
+    // Update sweep range label
+    document.getElementById('lbl-sweep-range').textContent = sweepLabels[sel].split('(')[0].trim();
+    if (resetRange && !Number.isFinite(state.tab0.sweepMin) && !Number.isFinite(state.tab0.sweepMax)) {
+        const d = sweepDefaults[sel];
+        document.getElementById('sweep-min').value = d.min;
+        document.getElementById('sweep-max').value = d.max;
+        document.getElementById('sweep-pts').value = d.pts;
+        state.tab0.sweepMin = d.min;
+        state.tab0.sweepMax = d.max;
+        state.tab0.sweepPts = d.pts;
+    }
+    document.getElementById('sweep-min').value = state.tab0.sweepMin;
+    document.getElementById('sweep-max').value = state.tab0.sweepMax;
+    state.tab0.inspectX = null;
+    syncSweepPtsToChartWidth();
+    savePersistentState();
+    throttledRender(0);
+}
+
+function setTab0PhaseVisibility(showPhase) {
+    state.tab0.showPhase = !!showPhase;
+    syncTab0PlotButtons();
+    savePersistentState();
+    throttledRender(0);
+}
+
+function resetSweepRange() {
+    const sel = state.tab0.sweepVar;
+    const d = sweepDefaults[sel];
+    const tab0Defaults = { freq: 2, sourceDepth: 20, waterDepth: 500, horizOffset: 0 };
+    Object.entries(tab0Defaults).forEach(([key, value]) => {
+        state.tab0[key] = value;
+        document.getElementById('sl-t0-' + key).value = value;
+        document.getElementById('num-t0-' + key).value = value;
+        document.getElementById('val-t0-' + key).textContent = key === 'freq' ? value : Math.round(value);
+    });
+    state.tab0.sweepMin = d.min;
+    state.tab0.sweepMax = d.max;
+    state.tab0.sweepPts = d.pts;
+    state.tab0.inspectX = null;
+    document.getElementById('sweep-min').value = d.min;
+    document.getElementById('sweep-max').value = d.max;
+    syncSweepPtsToChartWidth();
+    savePersistentState();
+    throttledRender(0);
+}
+
+function onTab0Change() {
+    const t = state.tab0;
+    ['freq','sourceDepth','waterDepth','horizOffset'].forEach(v => {
+        const sl = document.getElementById('sl-t0-' + v);
+        const val = parseFloat(sl.value);
+        t[v] = val;
+        document.getElementById('val-t0-' + v).textContent = v === 'freq' ? val : Math.round(val);
+        document.getElementById('num-t0-' + v).value = val;
+    });
+    const sweepMin = readBoundedNumber('sweep-min', t.sweepMin);
+    const sweepMax = readBoundedNumber('sweep-max', t.sweepMax);
+    t.sweepMin = Math.min(sweepMin, sweepMax);
+    t.sweepMax = Math.max(sweepMin, sweepMax);
+    document.getElementById('sweep-min').value = t.sweepMin;
+    document.getElementById('sweep-max').value = t.sweepMax;
+    syncSweepPtsToChartWidth();
+    t.inspectX = null;
+    savePersistentState();
+    throttledRender(0);
+}
+
+function onTab0SweepInput() {
+    const t = state.tab0;
+    const sweepMin = parseFloat(document.getElementById('sweep-min').value);
+    const sweepMax = parseFloat(document.getElementById('sweep-max').value);
+    if (Number.isFinite(sweepMin) && Number.isFinite(sweepMax)) {
+        t.sweepMin = Math.min(sweepMin, sweepMax);
+        t.sweepMax = Math.max(sweepMin, sweepMax);
+        t.inspectX = null;
+        throttledRender(0);
+    }
+}
+
+function onTab0NumInput(param) {
+    const el = document.getElementById('num-t0-' + param);
+    const raw = parseFloat(el.value);
+    if (!Number.isFinite(raw)) return;
+    const min = el.min !== '' ? parseFloat(el.min) : -Infinity;
+    const max = el.max !== '' ? parseFloat(el.max) : Infinity;
+    const v = clamp(raw, min, max);
+    state.tab0[param] = v;
+    document.getElementById('sl-t0-' + param).value = v;
+    document.getElementById('val-t0-' + param).textContent = param === 'freq' ? v : Math.round(v);
+    state.tab0.inspectX = null;
+    throttledRender(0);
+}
+
+function onTab0NumChange(param) {
+    const v = readBoundedNumber('num-t0-' + param, state.tab0[param]);
+    state.tab0[param] = v;
+    document.getElementById('sl-t0-' + param).value = v;
+    document.getElementById('val-t0-' + param).textContent = param === 'freq' ? v : Math.round(v);
+    state.tab0.inspectX = null;
+    savePersistentState();
+    throttledRender(0);
+}
+
+function generateTab0Data() {
+    const t = state.tab0;
+    const sv = t.sweepVar;
+    const xs = linspace(t.sweepMin, t.sweepMax, t.sweepPts);
+    const ys = [], phases = [];
+    xs.forEach(x => {
+        const p = { freq: t.freq, sourceDepth: t.sourceDepth, waterDepth: t.waterDepth, horizOffset: t.horizOffset };
+        p[sv] = x;
+        const result = computeSPLAndPhase(p.freq, p.sourceDepth, p.waterDepth, p.horizOffset, state.c, state.R);
+        ys.push(result.spl);
+        // Phase relative to X=0 reference at same depth
+        const ref = computeSPLAndPhase(p.freq, p.sourceDepth, p.waterDepth, 0, state.c, state.R);
+        let rel = result.phase - ref.phase;
+        while (rel > 180) rel -= 360;
+        while (rel < -180) rel += 360;
+        phases.push(rel);
+    });
+    return { x: xs, y: ys, phases: phases };
+}
+
+function getTab0FixedParamParts(useShortLabels) {
+    const t = state.tab0;
+    const shorts = { freq: 'f', sourceDepth: 'd', waterDepth: 'Z', horizOffset: 'X' };
+    const units = { freq: 'Hz', sourceDepth: 'm', waterDepth: 'm', horizOffset: 'm' };
+    return ['freq','sourceDepth','waterDepth','horizOffset']
+        .filter(v => v !== t.sweepVar)
+        .map(v => {
+            const label = useShortLabels ? shorts[v] : sweepLabels[v].split('(')[0].trim();
+            return `${label}=${t[v]}${units[v]}`;
+        });
+}
+
+function getCurrentTab0CurveLabel() {
+    return getTab0FixedParamParts(true).join(', ') || 'SPL';
+}
+
+function buildCurrentTab0CurveRecord() {
+    syncSweepPtsToChartWidth();
+    const t = state.tab0;
+    const data = generateTab0Data();
+    return {
+        x: data.x.slice(),
+        y: data.y.slice(),
+        phases: data.phases.slice(),
+        label: getCurrentTab0CurveLabel(),
+        sweepVar: t.sweepVar,
+        freq: t.freq,
+        sourceDepth: t.sourceDepth,
+        waterDepth: t.waterDepth,
+        horizOffset: t.horizOffset,
+        sweepMin: t.sweepMin,
+        sweepMax: t.sweepMax,
+        sweepPts: t.sweepPts,
+        c: state.c,
+        R: state.R,
+        resolutionScale: state.resolutionScale
+    };
+}
+
+function parseCurveLabelParams(label) {
+    const out = {};
+    const map = { f: 'freq', d: 'sourceDepth', Z: 'waterDepth', X: 'horizOffset' };
+    const regex = /([fdZX])\s*=\s*(-?\d+(?:\.\d+)?)/g;
+    let match;
+    while ((match = regex.exec(label || '')) !== null) {
+        out[map[match[1]]] = parseFloat(match[2]);
+    }
+    return out;
+}
+
+function hydrateSavedCurve(sc) {
+    const parsed = parseCurveLabelParams(sc.label);
+    const xs = Array.isArray(sc.x) ? sc.x.slice() : [];
+    const ys = Array.isArray(sc.y) ? sc.y.slice() : [];
+    return {
+        x: xs,
+        y: ys,
+        phases: Array.isArray(sc.phases) ? sc.phases.slice() : null,
+        label: sc.label || 'Saved curve',
+        sweepVar: sc.sweepVar || state.tab0.sweepVar,
+        freq: Number.isFinite(sc.freq) ? sc.freq : parsed.freq,
+        sourceDepth: Number.isFinite(sc.sourceDepth) ? sc.sourceDepth : parsed.sourceDepth,
+        waterDepth: Number.isFinite(sc.waterDepth) ? sc.waterDepth : parsed.waterDepth,
+        horizOffset: Number.isFinite(sc.horizOffset) ? sc.horizOffset : parsed.horizOffset,
+        sweepMin: Number.isFinite(sc.sweepMin) ? sc.sweepMin : (xs.length ? xs[0] : null),
+        sweepMax: Number.isFinite(sc.sweepMax) ? sc.sweepMax : (xs.length ? xs[xs.length - 1] : null),
+        sweepPts: Number.isFinite(sc.sweepPts) ? sc.sweepPts : xs.length,
+        c: Number.isFinite(sc.c) ? sc.c : state.c,
+        R: Number.isFinite(sc.R) ? sc.R : state.R,
+        resolutionScale: Number.isFinite(sc.resolutionScale) ? sc.resolutionScale : state.resolutionScale
+    };
+}
+
+function isSameTab0Curve(curve, currentCurve) {
+    return curve.sweepVar === currentCurve.sweepVar && curve.label === currentCurve.label;
+}
+
+function getCurvePointParams(curve, sweepValue) {
+    const params = {
+        freq: curve.freq,
+        sourceDepth: curve.sourceDepth,
+        waterDepth: curve.waterDepth,
+        horizOffset: curve.horizOffset
+    };
+    params[curve.sweepVar] = sweepValue;
+    return params;
+}
+
+function getCurvePhaseSeries(curve) {
+    if (Array.isArray(curve.phases) && curve.phases.length === curve.x.length) {
+        return curve.phases;
+    }
+    return curve.x.map(sweepValue => {
+        const params = getCurvePointParams(curve, sweepValue);
+        if (!['freq', 'sourceDepth', 'waterDepth', 'horizOffset'].every(key => Number.isFinite(params[key]))) {
+            return '';
+        }
+        return computeRelativePhase(params.freq, params.sourceDepth, params.waterDepth, params.horizOffset, curve.c, curve.R);
+    });
+}
+
+function getTab0CsvExportCurves() {
+    const currentCurve = buildCurrentTab0CurveRecord();
+    const curves = [{ role: 'current', ...currentCurve }];
+    state.tab0.savedCurves.forEach(sc => {
+        const savedCurve = hydrateSavedCurve(sc);
+        if (isSameTab0Curve(savedCurve, currentCurve)) return;
+        curves.push({ role: 'saved', ...savedCurve });
+    });
+    return curves;
+}
+
+function csvEscape(value) {
+    if (value === null || typeof value === 'undefined') return '';
+    const str = String(value);
+    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+const XLSX_ENCODER = new TextEncoder();
+const XLSX_CRC32_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) {
+            c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        table[i] = c >>> 0;
+    }
+    return table;
+})();
+
+function xmlEscape(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function excelColumnName(index) {
+    let n = index;
+    let name = '';
+    while (n > 0) {
+        const rem = (n - 1) % 26;
+        name = String.fromCharCode(65 + rem) + name;
+        n = Math.floor((n - 1) / 26);
+    }
+    return name || 'A';
+}
+
+function concatUint8Arrays(parts) {
+    const total = parts.reduce((sum, part) => sum + part.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    parts.forEach(part => {
+        out.set(part, offset);
+        offset += part.length;
+    });
+    return out;
+}
+
+function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) {
+        crc = XLSX_CRC32_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+function getZipDosDateTime(date) {
+    const year = Math.max(date.getFullYear(), 1980);
+    const dosTime = ((date.getHours() & 0x1f) << 11) | ((date.getMinutes() & 0x3f) << 5) | Math.floor(date.getSeconds() / 2);
+    const dosDate = (((year - 1980) & 0x7f) << 9) | (((date.getMonth() + 1) & 0xf) << 5) | (date.getDate() & 0x1f);
+    return { dosTime, dosDate };
+}
+
+function buildStoredZip(entries) {
+    const now = getZipDosDateTime(new Date());
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    entries.forEach(entry => {
+        const nameBytes = XLSX_ENCODER.encode(entry.name);
+        const dataBytes = entry.data instanceof Uint8Array ? entry.data : XLSX_ENCODER.encode(entry.data);
+        const checksum = crc32(dataBytes);
+
+        const localHeader = new ArrayBuffer(30);
+        const localView = new DataView(localHeader);
+        localView.setUint32(0, 0x04034b50, true);
+        localView.setUint16(4, 20, true);
+        localView.setUint16(6, 0, true);
+        localView.setUint16(8, 0, true);
+        localView.setUint16(10, now.dosTime, true);
+        localView.setUint16(12, now.dosDate, true);
+        localView.setUint32(14, checksum, true);
+        localView.setUint32(18, dataBytes.length, true);
+        localView.setUint32(22, dataBytes.length, true);
+        localView.setUint16(26, nameBytes.length, true);
+        localView.setUint16(28, 0, true);
+        localParts.push(new Uint8Array(localHeader), nameBytes, dataBytes);
+
+        const centralHeader = new ArrayBuffer(46);
+        const centralView = new DataView(centralHeader);
+        centralView.setUint32(0, 0x02014b50, true);
+        centralView.setUint16(4, 20, true);
+        centralView.setUint16(6, 20, true);
+        centralView.setUint16(8, 0, true);
+        centralView.setUint16(10, 0, true);
+        centralView.setUint16(12, now.dosTime, true);
+        centralView.setUint16(14, now.dosDate, true);
+        centralView.setUint32(16, checksum, true);
+        centralView.setUint32(20, dataBytes.length, true);
+        centralView.setUint32(24, dataBytes.length, true);
+        centralView.setUint16(28, nameBytes.length, true);
+        centralView.setUint16(30, 0, true);
+        centralView.setUint16(32, 0, true);
+        centralView.setUint16(34, 0, true);
+        centralView.setUint16(36, 0, true);
+        centralView.setUint32(38, 0, true);
+        centralView.setUint32(42, offset, true);
+        centralParts.push(new Uint8Array(centralHeader), nameBytes);
+
+        offset += 30 + nameBytes.length + dataBytes.length;
+    });
+
+    const localData = concatUint8Arrays(localParts);
+    const centralData = concatUint8Arrays(centralParts);
+    const endRecord = new ArrayBuffer(22);
+    const endView = new DataView(endRecord);
+    endView.setUint32(0, 0x06054b50, true);
+    endView.setUint16(4, 0, true);
+    endView.setUint16(6, 0, true);
+    endView.setUint16(8, entries.length, true);
+    endView.setUint16(10, entries.length, true);
+    endView.setUint32(12, centralData.length, true);
+    endView.setUint32(16, localData.length, true);
+    endView.setUint16(20, 0, true);
+
+    return new Blob(
+        [localData, centralData, new Uint8Array(endRecord)],
+        { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+    );
+}
+
+function createWorksheetXml(rows, colWidths) {
+    const maxCol = colWidths.length || rows.reduce((max, row) => Math.max(max, row.length), 0);
+    const maxRow = rows.length;
+    const dimension = maxCol > 0 && maxRow > 0 ? `A1:${excelColumnName(maxCol)}${maxRow}` : 'A1';
+    const colsXml = colWidths.length > 0
+        ? `<cols>${colWidths.map((width, idx) => `<col min="${idx + 1}" max="${idx + 1}" width="${width}" customWidth="1"/>`).join('')}</cols>`
+        : '';
+    const rowsXml = rows.map((row, rowIdx) => {
+        const cellXml = [];
+        row.forEach((cell, colIdx) => {
+            if (!cell || cell.value === '' || cell.value === null || typeof cell.value === 'undefined') return;
+            const ref = `${excelColumnName(colIdx + 1)}${rowIdx + 1}`;
+            if (cell.type === 'n' && Number.isFinite(cell.value)) {
+                const styleAttr = cell.style ? ` s="${cell.style}"` : '';
+                cellXml.push(`<c r="${ref}"${styleAttr}><v>${cell.value}</v></c>`);
+            } else {
+                cellXml.push(`<c r="${ref}" t="inlineStr"><is><t>${xmlEscape(cell.value)}</t></is></c>`);
+            }
+        });
+        return `<row r="${rowIdx + 1}">${cellXml.join('')}</row>`;
+    }).join('');
+
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="${dimension}"/>
+  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+  ${colsXml}
+  <sheetData>${rowsXml}</sheetData>
+</worksheet>`;
+}
+
+function createStylesXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1">
+    <numFmt numFmtId="164" formatCode="0.0"/>
+  </numFmts>
+  <fonts count="1">
+    <font><sz val="11"/><name val="Aptos"/></font>
+  </fonts>
+  <fills count="2">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+  </fills>
+  <borders count="1">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="4">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+    <xf numFmtId="2" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`;
+}
+
+function buildTab0WorksheetSpec() {
+    const curves = getTab0CsvExportCurves();
+    const paramLabels = {
+        freq: 'Frequency (Hz)',
+        sourceDepth: 'Source Depth (m)',
+        waterDepth: 'Water Depth (m)',
+        horizOffset: 'Horiz. Offset (m)'
+    };
+    const getParamStyle = key => (key === 'freq' || key === 'sourceDepth') ? 2 : 1;
+    const phaseSeries = curves.map(curve => getCurvePhaseSeries(curve));
+    const maxPoints = curves.reduce((max, curve) => Math.max(max, curve.x.length), 0);
+    const maxRows = 4 + maxPoints;
+    const rows = Array.from({ length: maxRows }, () => []);
+    const colWidths = [];
+
+    curves.forEach((curve, curveIdx) => {
+        if (curveIdx > 0) colWidths.push(3);
+        colWidths.push(24, 14, 14);
+
+        const block = [];
+        const fixedKeys = ['freq', 'sourceDepth', 'waterDepth', 'horizOffset'].filter(key => key !== curve.sweepVar);
+
+        fixedKeys.forEach((key, idx) => {
+            block[idx] = [
+                { type: 's', value: paramLabels[key] },
+                { type: 'n', value: curve[key], style: getParamStyle(key) },
+                null
+            ];
+        });
+
+        block[3] = [
+            { type: 's', value: paramLabels[curve.sweepVar] },
+            { type: 's', value: 'SPL (dB)' },
+            { type: 's', value: 'Phase (deg)' }
+        ];
+
+        for (let pointIdx = 0; pointIdx < maxPoints; pointIdx++) {
+            if (pointIdx < curve.x.length) {
+                const params = getCurvePointParams(curve, curve.x[pointIdx]);
+                block[4 + pointIdx] = [
+                    { type: 'n', value: params[curve.sweepVar], style: getParamStyle(curve.sweepVar) },
+                    { type: 'n', value: curve.y[pointIdx], style: 3 },
+                    { type: 'n', value: phaseSeries[curveIdx][pointIdx], style: 3 }
+                ];
+            } else {
+                block[4 + pointIdx] = [null, null, null];
+            }
+        }
+
+        for (let rowIdx = 0; rowIdx < maxRows; rowIdx++) {
+            if (curveIdx > 0) rows[rowIdx].push(null);
+            rows[rowIdx].push(...block[rowIdx]);
+        }
+    });
+
+    return { rows, colWidths };
+}
+
+function createTab0WorkbookBlob() {
+    const sheet = buildTab0WorksheetSpec();
+    const entries = [
+        {
+            name: '[Content_Types].xml',
+            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`
+        },
+        {
+            name: '_rels/.rels',
+            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`
+        },
+        {
+            name: 'xl/workbook.xml',
+            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Tab0 Curves" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`
+        },
+        {
+            name: 'xl/_rels/workbook.xml.rels',
+            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+        },
+        {
+            name: 'xl/worksheets/sheet1.xml',
+            data: createWorksheetXml(sheet.rows, sheet.colWidths)
+        },
+        {
+            name: 'xl/styles.xml',
+            data: createStylesXml()
+        }
+    ];
+    return buildStoredZip(entries);
+}
+
+function renderTab0() {
+    const t = state.tab0;
+    const size = getChartSize(0);
+    const responsivePts = getResponsiveSweepPts();
+    if (t.sweepPts !== responsivePts) {
+        t.sweepPts = responsivePts;
+        document.getElementById('sweep-pts').value = responsivePts;
+    }
+    const currentCurve = buildCurrentTab0CurveRecord();
+    const data = { x: currentCurve.x, y: currentCurve.y, phases: currentCurve.phases };
+    const traces = [];
+    const currentCurveLabel = currentCurve.label;
+    const comparisonSetup = getTab0ComparisonSetup(currentCurve);
+    if (t.compareMode && !comparisonSetup.available) {
+        t.compareMode = false;
+    }
+    syncTab0CompareButton();
+
+    if (t.compareMode && comparisonSetup.available) {
+        comparisonSetup.curves.forEach(entry => {
+            const relSeries = buildRelativeSplSeries(comparisonSetup.reference, entry.curve);
+            if (relSeries.x.length === 0) return;
+            const trace = {
+                x: relSeries.x,
+                y: relSeries.y,
+                type: 'scatter',
+                mode: entry.isCurrent ? 'lines+markers' : 'lines',
+                line: {
+                    color: entry.color,
+                    width: entry.isCurrent ? 2.5 : 1.8,
+                    dash: entry.isCurrent ? 'solid' : 'dot'
+                },
+                name: entry.curve.label,
+                hovertemplate: `${sweepLabels[t.sweepVar]}: %{x}<br>Relative SPL: %{y:.2f} dB<extra>${entry.curve.label}</extra>`
+            };
+            if (entry.isCurrent) {
+                trace.marker = { size: 4, color: entry.color };
+            }
+            traces.push(trace);
+        });
+    } else {
+        t.savedCurves.forEach((sc, i) => {
+            if (sc.sweepVar === t.sweepVar && sc.label === currentCurveLabel) return;
+            traces.push({
+                x: sc.x, y: sc.y,
+                type: 'scatter', mode: 'lines',
+                line: { color: CURVE_COLORS[i % CURVE_COLORS.length], width: 1.5, dash: 'dot' },
+                name: sc.label,
+                opacity: 0.7,
+                hovertemplate: `${sweepLabels[sc.sweepVar]}: %{x}<br>SPL: %{y:.2f} dB<extra>${sc.label}</extra>`
+            });
+        });
+
+        traces.push({
+            x: data.x, y: data.y,
+            type: 'scatter', mode: 'lines+markers',
+            line: { color: '#00b4d8', width: 2.5 },
+            marker: { size: 4, color: '#00b4d8' },
+            name: currentCurveLabel,
+            hovertemplate: `${sweepLabels[t.sweepVar]}: %{x}<br>SPL: %{y:.2f} dB<extra>${currentCurveLabel}</extra>`
+        });
+
+        if (t.showPhase !== false) {
+            traces.push({
+                x: data.x, y: data.phases,
+                type: 'scatter', mode: 'lines',
+                line: { color: '#ffd93d', width: 2, dash: 'dot' },
+                name: RELATIVE_PHASE_SHORT_LABEL,
+                yaxis: 'y2',
+                hovertemplate: `${sweepLabels[t.sweepVar]}: %{x}<br>${RELATIVE_PHASE_SHORT_LABEL}: %{y:.1f}\u00B0<extra></extra>`
+            });
+        }
+    }
+
+    // Ghost notch annotations
+    const shapes = [];
+    const annotations = [];
+    if (!t.compareMode && t.sweepVar === 'freq') {
+        const details = computePathDetails(t.freq, t.sourceDepth, t.waterDepth, t.horizOffset, state.c, state.R);
+        const notches = computeGhostNotchFreqs(details.deltaR, state.c, t.sweepMax);
+        notches.forEach(notch => {
+            shapes.push({
+                type: 'line', x0: notch.freq, x1: notch.freq,
+                y0: 0, y1: 1, yref: 'paper',
+                line: { color: '#e94560', width: 1.5, dash: 'dash' }
+            });
+            annotations.push({
+                x: notch.freq, y: 1, yref: 'paper',
+                text: `n=${notch.n}`, showarrow: false,
+                font: { color: '#e94560', size: 10 },
+                yanchor: 'bottom', yshift: 4
+            });
+        });
+    }
+
+    // Build fixed-param subtitle
+    const fixedParams = getTab0FixedParamParts(false);
+    const referenceSubtitle = t.compareMode && comparisonSetup.available
+        ? `<br><span style="font-size:12px;color:#6ee7f9;font-weight:400;">Reference: ${comparisonSetup.reference.label}</span>`
+        : '';
+    const titleSubtitle = fixedParams.length > 0
+        ? `<br><span style="font-size:7px;">&nbsp;</span><br><span style="font-size:15px;color:#94a3b8;font-weight:400;">${fixedParams.join(' | ')}</span>`
+        : '';
+
+    const layout = deepLayout({
+        width: size.width, height: size.height,
+        margin: { t: 112, r: 60, b: 45 },
+        title: {
+            text: `${t.compareMode && comparisonSetup.available ? 'Relative SPL' : 'SPL'} vs ${sweepLabels[t.sweepVar]}${titleSubtitle}${referenceSubtitle}`,
+            font: { size: 18 },
+            y: 0.965,
+            x: 0.5,
+            xanchor: 'center'
+        },
+        xaxis: { title: sweepLabels[t.sweepVar], gridcolor: '#2a2a4a' },
+        yaxis: {
+            title: t.compareMode && comparisonSetup.available ? 'Relative SPL re First Saved (dB)' : 'SPL (dB re source)',
+            gridcolor: '#2a2a4a',
+            titlefont: { color: '#00b4d8' },
+            tickfont: { color: '#00b4d8' }
+        },
+        shapes: shapes,
+        annotations: annotations,
+        showlegend: traces.length > 1,
+        legend: {
+            orientation: 'h',
+            bgcolor: 'rgba(22,33,62,0.8)',
+            font: { size: 10 },
+            x: 1,
+            xanchor: 'right',
+            y: 1.11,
+            yanchor: 'top'
+        },
+        hovermode: 'x'
+    });
+    if (!t.compareMode && t.showPhase !== false) {
+        layout.yaxis2 = {
+            title: `${RELATIVE_PHASE_SHORT_LABEL} (\u00B0)`,
+            overlaying: 'y',
+            side: 'right',
+            gridcolor: '#2a2a3a',
+            titlefont: { color: '#ffd93d' },
+            tickfont: { color: '#ffd93d' },
+            showgrid: false
+        };
+    }
+
+    if (state.chartsInitialized[0]) {
+        Plotly.react('chart-0', traces, layout, { responsive: true });
+    } else {
+        Plotly.newPlot('chart-0', traces, layout, { responsive: true });
+        state.chartsInitialized[0] = true;
+    }
+
+    attachTab0Interactions();
+
+    // Update readout
+    updateReadout();
+}
+
+function updateReadout() {
+    const t = state.tab0;
+    const params = getTab0ReadoutParams();
+    const details = computePathDetails(params.freq, params.sourceDepth, params.waterDepth, params.horizOffset, state.c, state.R);
+    document.getElementById('ro-freq').textContent = fmt(params.freq, 2) + ' Hz';
+    document.getElementById('ro-x').textContent = fmt(params.horizOffset, 2) + ' m';
+    document.getElementById('ro-rdirect').textContent = fmt(details.rDirect, 2) + ' m';
+    document.getElementById('ro-rghost').textContent = fmt(details.rGhost, 2) + ' m';
+    document.getElementById('ro-deltar').textContent = fmt(details.deltaR, 4) + ' m';
+    document.getElementById('ro-wavelength').textContent = fmt(details.wavelength, 2) + ' m';
+    document.getElementById('ro-phase').textContent = fmt(details.ghostDelayMs, 3) + ' ms';
+    document.getElementById('ro-adirect').textContent = fmt(details.aDirect, 6);
+    document.getElementById('ro-aghost').textContent = fmt(details.aGhost, 6);
+    const resPhase = computeRelativePhase(params.freq, params.sourceDepth, params.waterDepth, params.horizOffset, state.c, state.R);
+    document.getElementById('ro-resphase').textContent = fmt(resPhase, 2) + '\u00B0';
+
+    // Notch frequencies
+    const notches = computeGhostNotchFreqs(details.deltaR, state.c, 200);
+    const notchList = document.getElementById('ro-notches');
+    if (notches.length === 0) {
+        notchList.innerHTML = '<li style="color:var(--text-muted)">None in range</li>';
+    } else {
+        notchList.innerHTML = notches.map(n =>
+            `<li><span class="n-label">n=${n.n}</span> ${fmt(n.freq, 2)} Hz</li>`
+        ).join('');
+    }
+
+    // Saved curves list
+    const scList = document.getElementById('saved-curves-list');
+    if (t.savedCurves.length === 0) {
+        scList.innerHTML = '<span style="color:var(--text-muted);font-size:11px">None saved</span>';
+    } else {
+        scList.innerHTML = t.savedCurves.map((sc, i) =>
+            `<div class="saved-curve-item">
+                <div class="swatch" style="background:${CURVE_COLORS[i % CURVE_COLORS.length]}"></div>
+                <span class="curve-label" title="${sc.label}">${sc.label}</span>
+                <button class="btn-remove" onclick="removeCurve(${i})">&times;</button>
+            </div>`
+        ).join('');
+    }
+}
+
+function saveCurve() {
+    const t = state.tab0;
+    const curve = buildCurrentTab0CurveRecord();
+    curve.label = curve.label || 'Saved curve';
+    const existingIdx = t.savedCurves.findIndex(sc => sc.sweepVar === curve.sweepVar && sc.label === curve.label);
+    if (existingIdx >= 0) {
+        t.savedCurves[existingIdx] = curve;
+    } else {
+        if (t.savedCurves.length >= MAX_SAVED) {
+            t.savedCurves.shift();
+        }
+        t.savedCurves.push(curve);
+    }
+    savePersistentState();
+    throttledRender(0);
+}
+
+function removeCurve(idx) {
+    state.tab0.savedCurves.splice(idx, 1);
+    savePersistentState();
+    throttledRender(0);
+}
+
+function clearCurves() {
+    state.tab0.savedCurves = [];
+    savePersistentState();
+    throttledRender(0);
+}
+
+// ============ TAB 2: Freq x Source Depth ============
+function onTab2Change() {
+    const wd = parseFloat(document.getElementById('sl-t2-waterDepth').value);
+    const ho = parseFloat(document.getElementById('sl-t2-horizOffset').value);
+    state.tab2.waterDepth = wd;
+    state.tab2.horizOffset = ho;
+    document.getElementById('val-t2-waterDepth').textContent = Math.round(wd);
+    document.getElementById('val-t2-horizOffset').textContent = Math.round(ho);
+    document.getElementById('num-t2-waterDepth').value = wd;
+    document.getElementById('num-t2-horizOffset').value = ho;
+    savePersistentState();
+    throttledRender(2);
+}
+
+function onTab2NumChange(param) {
+    const v = readBoundedNumber('num-t2-' + param, state.tab2[param]);
+    state.tab2[param] = v;
+    document.getElementById('sl-t2-' + param).value = v;
+    document.getElementById('val-t2-' + param).textContent = Math.round(v);
+    savePersistentState();
+    throttledRender(2);
+}
+
+function renderTab2() {
+    const t = state.tab2;
+    const size = getChartSize(2);
+    const showPhase = document.getElementById('disp-2').value === 'phase';
+    const freqs = [];
+    const freqCount = getResponsiveGridCount(size.width, 8, 100, 420);
+    const depthCount = getResponsiveGridCount(size.height, 8, 46, 260);
+    for (let i = 0; i < freqCount; i++) {
+        freqs.push(1 + i * (99 / Math.max(freqCount - 1, 1)));
+    }
+    const depths = linspace(5, 50, depthCount);
+
+    const z = [];
+    for (let j = 0; j < depths.length; j++) {
+        const row = [];
+        for (let i = 0; i < freqs.length; i++) {
+            if (showPhase) {
+                row.push(computeRelativePhase(freqs[i], depths[j], t.waterDepth, t.horizOffset, state.c, state.R));
+            } else {
+                row.push(computeSPL(freqs[i], depths[j], t.waterDepth, t.horizOffset, state.c, state.R));
+            }
+        }
+        z.push(row);
+    }
+
+    const lockEl = document.getElementById('lock-z-2');
+    const rangeKey = showPhase ? 'phase' : 'spl';
+    let zmin, zmax;
+    if (lockEl.checked && t.lockedRange[rangeKey]) {
+        zmin = t.lockedRange[rangeKey][0]; zmax = t.lockedRange[rangeKey][1];
+    } else {
+        const flat = z.flat().filter(v => isFinite(v));
+        zmin = Math.min(...flat); zmax = Math.max(...flat);
+        if (lockEl.checked) t.lockedRange[rangeKey] = [zmin, zmax];
+        else t.lockedRange[rangeKey] = null;
+    }
+
+    const zLabel2 = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL} (\u00B0)` : 'SPL (dB)';
+    const zFmt2 = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL}: %{z:.1f}\u00B0` : 'SPL: %{z:.1f} dB';
+    const traces = [{
+        type: 'heatmap',
+        z: z, x: freqs, y: depths,
+        colorscale: showPhase ? 'RdBu' : document.getElementById('cs-2').value,
+        colorbar: { title: { text: zLabel2, side: 'right' }, tickfont: { size: 10 } },
+        zmin: zmin, zmax: zmax,
+        zmid: showPhase ? 0 : undefined,
+        hovertemplate: `Freq: %{x} Hz<br>Source Depth: %{y:.1f} m<br>${zFmt2}<extra></extra>`
+    }];
+
+    // Ghost notch locus overlay
+    if (document.getElementById('show-notch-2').checked) {
+        const notchX = [], notchY = [];
+        for (const d of depths) {
+            const details = computePathDetails(1, d, t.waterDepth, t.horizOffset, state.c, state.R);
+            const notches = computeGhostNotchFreqs(details.deltaR, state.c, 100);
+            notches.forEach(n => {
+                notchX.push(n.freq);
+                notchY.push(d);
+            });
+        }
+        if (notchX.length > 0) {
+            traces.push({
+                type: 'scatter', mode: 'markers',
+                x: notchX, y: notchY,
+                marker: { size: 4, color: '#e94560', symbol: 'x', line: { width: 1.5, color: '#e94560' } },
+                name: 'Ghost notch',
+                hovertemplate: 'Notch at %{x:.1f} Hz<br>Depth: %{y:.1f} m<extra></extra>'
+            });
+        }
+    }
+
+    const layout = deepLayout({
+        width: size.width, height: size.height,
+        title: { text: `${showPhase ? RELATIVE_PHASE_LABEL : 'SPL'}: Frequency vs Source Depth (Z=${Math.round(t.waterDepth)}m, X=${Math.round(t.horizOffset)}m)`, font: { size: 14 } },
+        xaxis: { title: 'Frequency (Hz)' },
+        yaxis: { title: 'Source Depth (m)' },
+        margin: { t: 50, r: 100, b: 60, l: 80 },
+        showlegend: document.getElementById('show-notch-2').checked,
+        legend: { x: 1, y: 1, xanchor: 'right', bgcolor: 'rgba(22,33,62,0.8)', font: { size: 10 } }
+    });
+
+    if (state.chartsInitialized[2]) {
+        Plotly.react('chart-2', traces, layout, { responsive: true });
+    } else {
+        Plotly.newPlot('chart-2', traces, layout, { responsive: true });
+        state.chartsInitialized[2] = true;
+    }
+}
+
+// ============ TAB 3: Spatial Field (X, Z) ============
+function onTab3Change() {
+    const f = parseFloat(document.getElementById('sl-t3-freq').value);
+    const sd = parseFloat(document.getElementById('sl-t3-sourceDepth').value);
+    state.tab3.freq = f;
+    state.tab3.sourceDepth = sd;
+    document.getElementById('val-t3-freq').textContent = f;
+    document.getElementById('val-t3-sourceDepth').textContent = Math.round(sd);
+    document.getElementById('num-t3-freq').value = f;
+    document.getElementById('num-t3-sourceDepth').value = sd;
+    savePersistentState();
+    throttledRender(3);
+}
+
+function onTab3NumChange(param) {
+    const v = readBoundedNumber('num-t3-' + param, state.tab3[param]);
+    state.tab3[param] = v;
+    document.getElementById('sl-t3-' + param).value = v;
+    document.getElementById('val-t3-' + param).textContent = param === 'freq' ? v : Math.round(v);
+    savePersistentState();
+    throttledRender(3);
+}
+
+function renderTab3() {
+    const t = state.tab3;
+    const size = getChartSize(3);
+    const showPhase = document.getElementById('disp-3').value === 'phase';
+    const xCount = getResponsiveGridCount(size.width, 8, 80, 320);
+    const depthCount = getResponsiveGridCount(size.height, 8, 60, 260);
+    const xOffsets = logspace(1, 3000, xCount);
+    const waterDepths = logspace(30, 3000, depthCount);
+
+    const z = [];
+    for (let j = 0; j < waterDepths.length; j++) {
+        const row = [];
+        for (let i = 0; i < xOffsets.length; i++) {
+            if (showPhase) {
+                row.push(computeRelativePhase(t.freq, t.sourceDepth, waterDepths[j], xOffsets[i], state.c, state.R));
+            } else {
+                row.push(computeSPL(t.freq, t.sourceDepth, waterDepths[j], xOffsets[i], state.c, state.R));
+            }
+        }
+        z.push(row);
+    }
+
+    const lockEl = document.getElementById('lock-z-3');
+    const rangeKey = showPhase ? 'phase' : 'spl';
+    let zmin, zmax;
+    if (lockEl.checked && t.lockedRange[rangeKey]) {
+        zmin = t.lockedRange[rangeKey][0]; zmax = t.lockedRange[rangeKey][1];
+    } else {
+        const flat = z.flat().filter(v => isFinite(v));
+        zmin = Math.min(...flat); zmax = Math.max(...flat);
+        if (lockEl.checked) t.lockedRange[rangeKey] = [zmin, zmax];
+        else t.lockedRange[rangeKey] = null;
+    }
+
+    const zLabel3 = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL} (\u00B0)` : 'SPL (dB)';
+    const zFmt3 = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL}: %{z:.1f}\u00B0` : 'SPL: %{z:.1f} dB';
+    const traces = [{
+        type: 'heatmap',
+        z: z, x: xOffsets, y: waterDepths,
+        colorscale: showPhase ? 'RdBu' : document.getElementById('cs-3').value,
+        colorbar: { title: { text: zLabel3, side: 'right' }, tickfont: { size: 10 } },
+        zmin: zmin, zmax: zmax,
+        zmid: showPhase ? 0 : undefined,
+        hovertemplate: `X Offset: %{x:.1f} m<br>Water Depth: %{y:.1f} m<br>${zFmt3}<extra></extra>`
+    }];
+
+    // Source depth marker
+    traces.push({
+        type: 'scatter', mode: 'markers',
+        x: [0.5], y: [t.sourceDepth],
+        marker: { size: 12, color: '#e94560', symbol: 'star', line: { width: 1, color: '#fff' } },
+        name: 'Source',
+        showlegend: true,
+        hovertemplate: `Source at ${Math.round(t.sourceDepth)}m depth<extra></extra>`
+    });
+
+    const layout = deepLayout({
+        width: size.width, height: size.height,
+        title: { text: `Spatial Field: ${showPhase ? RELATIVE_PHASE_LABEL : 'SPL'} at ${t.freq} Hz, source depth ${Math.round(t.sourceDepth)}m`, font: { size: 14 } },
+        xaxis: { title: 'Horizontal Offset (m)', type: 'log' },
+        yaxis: { title: 'Water Depth (m)', type: 'log', autorange: 'reversed' },
+        margin: { t: 50, r: 100, b: 60, l: 80 },
+        showlegend: true,
+        legend: { x: 1, y: 0, xanchor: 'right', yanchor: 'bottom', bgcolor: 'rgba(22,33,62,0.8)', font: { size: 10 } }
+    });
+
+    if (state.chartsInitialized[3]) {
+        Plotly.react('chart-3', traces, layout, { responsive: true });
+    } else {
+        Plotly.newPlot('chart-3', traces, layout, { responsive: true });
+        state.chartsInitialized[3] = true;
+    }
+}
+
+// ============ TAB 4: 3D View ============
+function onTab4ModeChange() {
+    const mode = document.getElementById('t4-mode').value;
+    state.tab4.mode = mode;
+    // Show/hide control groups per mode
+    document.querySelectorAll('.t4-ctrl').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.t4-' + mode).forEach(el => el.classList.remove('hidden'));
+    state.chartsInitialized[4] = false; // force re-create for new 3D scene
+    savePersistentState();
+    throttledRender(4);
+}
+
+function syncTab4Slider(suffix) {
+    const keyMap = {
+        'wd-fd': 'fd_waterDepth',
+        'ho-fd': 'fd_horizOffset',
+        'f-sp': 'sp_freq',
+        'sd-sp': 'sp_sourceDepth',
+        'f-rad': 'rad_freq',
+        'sd-rad': 'rad_sourceDepth',
+        'range-rad': 'rad_range'
+    };
+    const v = readBoundedNumber('num-t4-' + suffix, state.tab4[keyMap[suffix]]);
+    document.getElementById('sl-t4-' + suffix).value = v;
+    document.getElementById('val-t4-' + suffix).textContent = suffix.startsWith('f-') ? v : Math.round(v);
+    onTab4Change();
+}
+
+function onTab4Change() {
+    const t = state.tab4;
+    // Sync all sliders to state
+    const syncPairs = [
+        ['wd-fd', 'fd_waterDepth'], ['ho-fd', 'fd_horizOffset'],
+        ['f-sp', 'sp_freq'], ['sd-sp', 'sp_sourceDepth'],
+        ['f-rad', 'rad_freq'], ['sd-rad', 'rad_sourceDepth'], ['range-rad', 'rad_range']
+    ];
+    syncPairs.forEach(([suffix, key]) => {
+        const sl = document.getElementById('sl-t4-' + suffix);
+        if (sl) {
+            const v = parseFloat(sl.value);
+            t[key] = v;
+            document.getElementById('val-t4-' + suffix).textContent = suffix.startsWith('f-') ? v : Math.round(v);
+            document.getElementById('num-t4-' + suffix).value = v;
+        }
+    });
+    savePersistentState();
+    throttledRender(4);
+}
+
+function renderTab4() {
+    const t = state.tab4;
+    switch (t.mode) {
+        case 'freqDepth':    renderTab4FreqDepth(); break;
+        case 'spatial':      renderTab4Spatial(); break;
+        case 'radiation':    renderTab4Radiation(); break;
+        default:
+            t.mode = 'freqDepth';
+            renderTab4FreqDepth();
+            break;
+    }
+}
+
+function renderTab4FreqDepth() {
+    const t = state.tab4;
+    const size = getChartSize(4);
+    const showPhase = document.getElementById('disp-4').value === 'phase';
+    const freqs = [];
+    const freqCount = getResponsiveGridCount(size.width, 10, 50, 220);
+    const depthCount = getResponsiveGridCount(size.height, 10, 40, 180);
+    for (let i = 0; i < freqCount; i++) {
+        freqs.push(1 + i * (99 / Math.max(freqCount - 1, 1)));
+    }
+    const depths = linspace(5, 50, depthCount);
+
+    const z = [];
+    for (let j = 0; j < depths.length; j++) {
+        const row = [];
+        for (let i = 0; i < freqs.length; i++) {
+            row.push(showPhase
+                ? computeRelativePhase(freqs[i], depths[j], t.fd_waterDepth, t.fd_horizOffset, state.c, state.R)
+                : computeSPL(freqs[i], depths[j], t.fd_waterDepth, t.fd_horizOffset, state.c, state.R));
+        }
+        z.push(row);
+    }
+
+    const zL = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL} (\u00B0)` : 'SPL (dB)';
+    const zH = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL}: %{z:.1f}\u00B0` : 'SPL: %{z:.1f} dB';
+    const traces = [{
+        type: 'surface',
+        z: z, x: freqs, y: depths,
+        colorscale: showPhase ? 'RdBu' : document.getElementById('cs-4').value,
+        colorbar: { title: { text: zL, side: 'right' }, tickfont: { size: 10 }, len: 0.6 },
+        hovertemplate: `Freq: %{x} Hz<br>Source Depth: %{y:.1f} m<br>${zH}<extra></extra>`,
+        contours: {
+            z: { show: true, usecolormap: true, highlightcolor: '#fff', project: { z: false } }
+        },
+        opacity: 0.95
+    }];
+
+    const layout = {
+        width: size.width, height: size.height,
+        paper_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0', family: 'Segoe UI, sans-serif', size: 11 },
+        margin: { t: 40, r: 20, b: 20, l: 20 },
+        title: { text: `3D ${showPhase ? RELATIVE_PHASE_LABEL : 'SPL'}: Freq x Source Depth (Z=${Math.round(t.fd_waterDepth)}m, X=${Math.round(t.fd_horizOffset)}m)`, font: { size: 14, color: '#e0e0e0' } },
+        scene: {
+            xaxis: { title: 'Frequency (Hz)', gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e' },
+            yaxis: { title: 'Source Depth (m)', gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e' },
+            zaxis: { title: zL, gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e' },
+            bgcolor: '#16213e',
+            camera: { eye: { x: 1.5, y: -1.8, z: 0.8 } }
+        }
+    };
+
+    if (state.chartsInitialized[4]) {
+        Plotly.react('chart-4', traces, layout, { responsive: true });
+    } else {
+        Plotly.newPlot('chart-4', traces, layout, { responsive: true });
+        state.chartsInitialized[4] = true;
+    }
+}
+
+function renderTab4Spatial() {
+    const t = state.tab4;
+    const size = getChartSize(4);
+    const showPhase = document.getElementById('disp-4').value === 'phase';
+    const xCount = getResponsiveGridCount(size.width, 10, 50, 220);
+    const depthCount = getResponsiveGridCount(size.height, 10, 40, 180);
+    const xOffsets = logspace(1, 3000, xCount);
+    const waterDepths = logspace(30, 3000, depthCount);
+
+    const z = [];
+    for (let j = 0; j < waterDepths.length; j++) {
+        const row = [];
+        for (let i = 0; i < xOffsets.length; i++) {
+            row.push(showPhase
+                ? computeRelativePhase(t.sp_freq, t.sp_sourceDepth, waterDepths[j], xOffsets[i], state.c, state.R)
+                : computeSPL(t.sp_freq, t.sp_sourceDepth, waterDepths[j], xOffsets[i], state.c, state.R));
+        }
+        z.push(row);
+    }
+
+    const zL = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL} (\u00B0)` : 'SPL (dB)';
+    const zH = showPhase ? `${RELATIVE_PHASE_SHORT_LABEL}: %{z:.1f}\u00B0` : 'SPL: %{z:.1f} dB';
+    const traces = [{
+        type: 'surface',
+        z: z, x: xOffsets, y: waterDepths,
+        colorscale: showPhase ? 'RdBu' : document.getElementById('cs-4').value,
+        colorbar: { title: { text: zL, side: 'right' }, tickfont: { size: 10 }, len: 0.6 },
+        hovertemplate: `X: %{x:.0f} m<br>Depth: %{y:.0f} m<br>${zH}<extra></extra>`,
+        contours: {
+            z: { show: true, usecolormap: true, highlightcolor: '#fff', project: { z: false } }
+        },
+        opacity: 0.95
+    }];
+
+    const layout = {
+        width: size.width, height: size.height,
+        paper_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0', family: 'Segoe UI, sans-serif', size: 11 },
+        margin: { t: 40, r: 20, b: 20, l: 20 },
+        title: { text: `3D Spatial ${showPhase ? RELATIVE_PHASE_LABEL : 'SPL'}: ${t.sp_freq} Hz, source at ${Math.round(t.sp_sourceDepth)}m`, font: { size: 14, color: '#e0e0e0' } },
+        scene: {
+            xaxis: { title: 'X Offset (m)', type: 'log', gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e' },
+            yaxis: { title: 'Water Depth (m)', type: 'log', gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e' },
+            zaxis: { title: zL, gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e' },
+            bgcolor: '#16213e',
+            camera: { eye: { x: 1.5, y: -1.8, z: 0.8 } }
+        }
+    };
+
+    if (state.chartsInitialized[4]) {
+        Plotly.react('chart-4', traces, layout, { responsive: true });
+    } else {
+        Plotly.newPlot('chart-4', traces, layout, { responsive: true });
+        state.chartsInitialized[4] = true;
+    }
+}
+
+function renderTab4Radiation() {
+    const t = state.tab4;
+    const size = getChartSize(4);
+    const freq = t.rad_freq;
+    const d = t.rad_sourceDepth;
+    const maxR = t.rad_range;
+
+    // Compute SPL on a hemispherical grid (below surface) in the X-Z plane
+    // theta = angle from vertical downward (0 = straight down, 90 = horizontal)
+    // phi = azimuthal angle (for 3D hemisphere)
+    const nTheta = getResponsiveGridCount(size.height, 10, 60, 220);
+    const nPhi = getResponsiveGridCount(size.width, 10, 72, 280);
+    const thetas = linspace(0, Math.PI / 2 * 0.98, nTheta); // 0 to ~88 degrees
+    const phis = linspace(0, 2 * Math.PI, nPhi);
+
+    // Compute SPL vs theta at fixed range (the directivity pattern)
+    // SPL values mapped to radius for a "balloon" plot
+    const splAtTheta = thetas.map(theta => {
+        const X = maxR * Math.sin(theta);
+        const Z = d + maxR * Math.cos(theta); // water depth = source depth + vertical distance
+        return computeSPL(freq, d, Z, X, state.c, state.R);
+    });
+
+    // Normalize: map SPL to a positive radius for the balloon
+    const splMin = Math.min(...splAtTheta.filter(v => isFinite(v)));
+    const splMax = Math.max(...splAtTheta.filter(v => isFinite(v)));
+    const splRange = splMax - splMin || 1;
+
+    // Build 3D surface: hemisphere where radius = normalized SPL
+    const xData = [], yData = [], zData = [], surfColor = [];
+    for (let j = 0; j < nTheta; j++) {
+        const xRow = [], yRow = [], zRow = [], cRow = [];
+        const spl = splAtTheta[j];
+        // Map SPL to radius: max SPL = maxR, min SPL = 0.1*maxR
+        const r = isFinite(spl) ? 0.1 * maxR + 0.9 * maxR * (spl - splMin) / splRange : 0.1 * maxR;
+        for (let i = 0; i < nPhi; i++) {
+            const theta = thetas[j];
+            const phi = phis[i];
+            xRow.push(r * Math.sin(theta) * Math.cos(phi));
+            yRow.push(r * Math.sin(theta) * Math.sin(phi));
+            zRow.push(-r * Math.cos(theta)); // negative = downward
+            cRow.push(isFinite(spl) ? spl : splMin);
+        }
+        xData.push(xRow);
+        yData.push(yRow);
+        zData.push(zRow);
+        surfColor.push(cRow);
+    }
+
+    const traces = [{
+        type: 'surface',
+        x: xData, y: yData, z: zData,
+        surfacecolor: surfColor,
+        colorscale: document.getElementById('cs-4').value,
+        colorbar: { title: { text: 'SPL (dB)', side: 'right' }, tickfont: { size: 10 }, len: 0.6 },
+        hovertemplate: 'SPL: %{surfacecolor:.1f} dB<extra></extra>',
+        opacity: 0.9,
+        contours: {
+            z: { show: false }
+        }
+    }];
+
+    // Add axis lines for reference
+    const axLen = maxR * 1.1;
+    // Vertical down line
+    traces.push({
+        type: 'scatter3d', mode: 'lines',
+        x: [0, 0], y: [0, 0], z: [0, -axLen],
+        line: { color: '#e94560', width: 3 },
+        name: 'Vertical', showlegend: true,
+        hoverinfo: 'skip'
+    });
+    // Horizontal line
+    traces.push({
+        type: 'scatter3d', mode: 'lines',
+        x: [0, axLen], y: [0, 0], z: [0, 0],
+        line: { color: '#00b4d8', width: 3 },
+        name: 'Horizontal', showlegend: true,
+        hoverinfo: 'skip'
+    });
+
+    // 2D profile line on the X-Z plane showing the actual shape
+    const profileX = [], profileZ = [], profileSPL = [];
+    for (let j = 0; j < nTheta; j++) {
+        const spl = splAtTheta[j];
+        const r = isFinite(spl) ? 0.1 * maxR + 0.9 * maxR * (spl - splMin) / splRange : 0.1 * maxR;
+        profileX.push(r * Math.sin(thetas[j]));
+        profileZ.push(-r * Math.cos(thetas[j]));
+        profileSPL.push(isFinite(spl) ? spl : splMin);
+    }
+    traces.push({
+        type: 'scatter3d', mode: 'lines',
+        x: profileX, y: profileX.map(() => 0), z: profileZ,
+        line: { color: '#ffd93d', width: 4 },
+        name: 'X-Z profile', showlegend: true,
+        hovertemplate: 'SPL: %{text:.1f} dB<extra></extra>',
+        text: profileSPL
+    });
+
+    const layout = {
+        width: size.width, height: size.height,
+        paper_bgcolor: '#1a1a2e',
+        font: { color: '#e0e0e0', family: 'Segoe UI, sans-serif', size: 11 },
+        margin: { t: 40, r: 20, b: 20, l: 20 },
+        title: { text: `Radiation Pattern: ${freq} Hz, source at ${Math.round(d)}m, range ${Math.round(maxR)}m`, font: { size: 14, color: '#e0e0e0' } },
+        scene: {
+            xaxis: { title: 'X (m)', gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e', showspikes: false },
+            yaxis: { title: 'Y (m)', gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e', showspikes: false },
+            zaxis: { title: 'Depth (m)', gridcolor: '#2a2a4a', color: '#94a3b8', backgroundcolor: '#16213e', showspikes: false },
+            bgcolor: '#16213e',
+            camera: { eye: { x: 1.2, y: 1.2, z: 0.8 } },
+            aspectmode: 'data'
+        },
+        showlegend: true,
+        legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(22,33,62,0.8)', font: { size: 10, color: '#e0e0e0' } }
+    };
+
+    if (state.chartsInitialized[4]) {
+        Plotly.react('chart-4', traces, layout, { responsive: true });
+    } else {
+        Plotly.newPlot('chart-4', traces, layout, { responsive: true });
+        state.chartsInitialized[4] = true;
+    }
+}
+
+function renderTab5() {
+    const curves = getTab0CsvExportCurves();
+    const totalRows = curves.reduce((sum, curve) => sum + curve.x.length, 0);
+    const summary = document.getElementById('csv-export-summary');
+    summary.textContent = `${curves.length} curve${curves.length === 1 ? '' : 's'}, ${totalRows} rows, sweep variable: ${sweepLabels[state.tab0.sweepVar]}.`;
+
+    const list = document.getElementById('csv-curve-summary');
+    list.innerHTML = curves.map((curve, idx) => {
+        const isCurrent = curve.role === 'current';
+        const swatch = isCurrent ? '#00b4d8' : CURVE_COLORS[(idx - 1 + CURVE_COLORS.length) % CURVE_COLORS.length];
+        const prefix = isCurrent ? 'Current' : 'Saved';
+        return `<div>
+            <div class="saved-curve-item">
+                <div class="swatch" style="background:${swatch}"></div>
+                <span class="curve-label" title="${prefix}: ${curve.label}">${prefix}: ${curve.label}</span>
+            </div>
+            <div class="export-meta">Sweep=${sweepLabels[curve.sweepVar]}, pts=${curve.x.length}, c=${fmt(curve.c, 0)} m/s, R=${fmt(curve.R, 2)}</div>
+        </div>`;
+    }).join('');
+}
+
+// ============ RENDER DISPATCH ============
+function renderTab(idx) {
+    switch(idx) {
+        case 0: renderTab0(); break;
+        case 2: renderTab2(); break;
+        case 3: renderTab3(); break;
+        case 4: renderTab4(); break;
+        case 5: renderTab5(); break;
+    }
+}
+
+// ============ EXPORT ============
+function getThemeColor(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+}
+
+function loadImage(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
+function downloadDataUrl(dataUrl, filename) {
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}
+
+function wrapCanvasText(ctx, text, maxWidth) {
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    if (words.length === 0) return [''];
+    const lines = [];
+    let current = words[0];
+    for (let i = 1; i < words.length; i++) {
+        const candidate = current + ' ' + words[i];
+        if (ctx.measureText(candidate).width <= maxWidth) {
+            current = candidate;
+        } else {
+            lines.push(current);
+            current = words[i];
+        }
+    }
+    lines.push(current);
+    return lines;
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, color) {
+    const lines = wrapCanvasText(ctx, text, maxWidth);
+    ctx.fillStyle = color;
+    lines.forEach((line, idx) => {
+        ctx.fillText(line, x, y + idx * lineHeight);
+    });
+    return y + Math.max(lines.length, 1) * lineHeight;
+}
+
+function getReadoutExportSections() {
+    const sections = [];
+    const readout = document.getElementById('readout-0');
+    if (!readout) return sections;
+
+    readout.querySelectorAll('.readout-section').forEach(sectionEl => {
+        const title = sectionEl.querySelector('h3')?.textContent?.trim() || '';
+        const items = Array.from(sectionEl.querySelectorAll('.readout-item')).map(item => ({
+            label: item.querySelector('.label')?.textContent?.trim() || '',
+            value: item.querySelector('.value')?.textContent?.trim() || ''
+        }));
+        const notches = sectionEl.querySelector('#ro-notches')
+            ? Array.from(sectionEl.querySelectorAll('#ro-notches li')).map(li => li.textContent.replace(/\s+/g, ' ').trim())
+            : [];
+        const savedCurves = sectionEl.querySelector('#saved-curves-list')
+            ? Array.from(sectionEl.querySelectorAll('#saved-curves-list .saved-curve-item')).map((row, idx) => ({
+                label: row.querySelector('.curve-label')?.textContent?.trim() || '',
+                color: row.querySelector('.swatch')?.style.backgroundColor || CURVE_COLORS[idx % CURVE_COLORS.length]
+            }))
+            : [];
+        const emptyText = sectionEl.querySelector('#saved-curves-list > span, #ro-notches > li[style]')?.textContent?.trim() || '';
+
+        sections.push({ title, items, notches, savedCurves, emptyText });
+    });
+
+    return sections;
+}
+
+function drawReadoutPanelToCanvas(ctx, x, y, width, height, scale) {
+    const colors = {
+        bg: getThemeColor('--bg-secondary', '#16213e'),
+        border: getThemeColor('--border', '#2a2a4a'),
+        text: getThemeColor('--text-primary', '#e0e0e0'),
+        secondary: getThemeColor('--text-secondary', '#94a3b8'),
+        muted: getThemeColor('--text-muted', '#64748b'),
+        accent: getThemeColor('--accent', '#00b4d8'),
+        warm: getThemeColor('--accent-warm', '#e94560')
+    };
+    const fontSans = "'Segoe UI', system-ui, -apple-system, sans-serif";
+    const fontMono = "'Consolas', 'Courier New', monospace";
+    const padding = Math.round(16 * scale);
+    const lineHeight = Math.round(18 * scale);
+    const sectionGap = Math.round(16 * scale);
+    const headingGap = Math.round(10 * scale);
+    const itemGap = Math.round(4 * scale);
+    const labelX = x + padding;
+    const valueX = x + width - padding;
+    const contentWidth = width - padding * 2;
+
+    ctx.fillStyle = colors.bg;
+    ctx.fillRect(x, y, width, height);
+    ctx.fillStyle = colors.border;
+    ctx.fillRect(x, y, Math.max(1, Math.round(scale)), height);
+
+    let cursorY = y + padding;
+    const sections = getReadoutExportSections();
+
+    sections.forEach((section, sectionIdx) => {
+        ctx.textAlign = 'left';
+        ctx.font = `600 ${Math.round(12 * scale)}px ${fontSans}`;
+        ctx.fillStyle = colors.secondary;
+        ctx.fillText(section.title.toUpperCase(), labelX, cursorY);
+        cursorY += Math.round(6 * scale);
+        ctx.fillStyle = colors.border;
+        ctx.fillRect(labelX, cursorY, contentWidth, Math.max(1, Math.round(scale)));
+        cursorY += headingGap;
+
+        if (section.items.length) {
+            section.items.forEach(item => {
+                ctx.font = `${Math.round(11 * scale)}px ${fontSans}`;
+                ctx.fillStyle = colors.secondary;
+                ctx.textAlign = 'left';
+                ctx.fillText(item.label, labelX, cursorY);
+                ctx.font = `600 ${Math.round(12 * scale)}px ${fontMono}`;
+                ctx.fillStyle = colors.accent;
+                ctx.textAlign = 'right';
+                ctx.fillText(item.value, valueX, cursorY);
+                cursorY += lineHeight;
+            });
+        } else if (section.notches.length) {
+            ctx.textAlign = 'left';
+            ctx.font = `${Math.round(11 * scale)}px ${fontMono}`;
+            section.notches.forEach(line => {
+                ctx.fillStyle = line.toLowerCase().includes('none') ? colors.muted : colors.warm;
+                cursorY = drawWrappedText(ctx, line, labelX, cursorY, contentWidth, Math.round(15 * scale), ctx.fillStyle);
+            });
+        } else if (section.savedCurves.length) {
+            ctx.textAlign = 'left';
+            section.savedCurves.forEach((curve, idx) => {
+                const swatch = curve.color || CURVE_COLORS[idx % CURVE_COLORS.length];
+                const swatchSize = Math.round(10 * scale);
+                ctx.fillStyle = swatch;
+                ctx.fillRect(labelX, cursorY - swatchSize + Math.round(2 * scale), swatchSize, swatchSize);
+                ctx.font = `${Math.round(11 * scale)}px ${fontSans}`;
+                ctx.fillStyle = colors.text;
+                cursorY = drawWrappedText(ctx, curve.label, labelX + swatchSize + Math.round(8 * scale), cursorY, contentWidth - swatchSize - Math.round(8 * scale), Math.round(15 * scale), colors.text);
+                cursorY += itemGap;
+            });
+        } else if (section.emptyText) {
+            ctx.textAlign = 'left';
+            ctx.font = `${Math.round(11 * scale)}px ${fontSans}`;
+            ctx.fillStyle = colors.muted;
+            cursorY = drawWrappedText(ctx, section.emptyText, labelX, cursorY, contentWidth, Math.round(15 * scale), colors.muted);
+        }
+
+        cursorY += sectionGap;
+        if (sectionIdx < sections.length - 1 && cursorY > y + height - padding) {
+            cursorY = y + height - padding;
+        }
+    });
+}
+
+async function exportTab0CompositePNG() {
+    updateReadout();
+
+    const chartEl = document.getElementById('chart-0');
+    const readoutEl = document.getElementById('readout-0');
+    if (!chartEl || !readoutEl) {
+        throw new Error('Tab 0 export elements were not found.');
+    }
+
+    const chartRect = chartEl.getBoundingClientRect();
+    const readoutRect = readoutEl.getBoundingClientRect();
+    const scale = 2;
+    const chartWidth = Math.max(800, Math.round(chartRect.width * scale));
+    const chartHeight = Math.max(600, Math.round(chartRect.height * scale));
+    const readoutWidth = Math.max(320, Math.round(readoutRect.width * scale));
+    const compositeHeight = Math.max(chartHeight, Math.round(readoutRect.height * scale));
+
+    const chartDataUrl = await Plotly.toImage(chartEl, {
+        format: 'png',
+        width: chartWidth,
+        height: chartHeight
+    });
+    const chartImage = await loadImage(chartDataUrl);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = chartWidth + readoutWidth;
+    canvas.height = compositeHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = getThemeColor('--bg-primary', '#1a1a2e');
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(chartImage, 0, 0, chartWidth, chartHeight);
+    drawReadoutPanelToCanvas(ctx, chartWidth, 0, readoutWidth, compositeHeight, scale);
+
+    downloadDataUrl(canvas.toDataURL('image/png'), 'ghost_interference_tab0.png');
+}
+
+async function exportPNG() {
+    if (state.activeTab > 4) {
+        window.alert('PNG export is available on the plot tabs only.');
+        return;
+    }
+    try {
+        if (state.activeTab === 0) {
+            await exportTab0CompositePNG();
+            return;
+        }
+        const chartId = 'chart-' + state.activeTab;
+        Plotly.downloadImage(chartId, {
+            format: 'png', width: 1600, height: 900,
+            filename: 'ghost_interference_tab' + state.activeTab
+        });
+    } catch (err) {
+        console.error('PNG export failed:', err);
+        window.alert('PNG export failed. Please try again.');
+    }
+}
+
+function downloadCurveXLSX() {
+    const blob = createTab0WorkbookBlob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `ghost_explorer_tab0_curves_${stamp}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+// ============ VALIDATION (developer console) ============
+function validateAgainstSpreadsheet() {
+    const tests = [
+        { f:2, d:30, Z:1000, X:0, expected: -65.95471542739207, label: 'f=2,d=30,Z=1000,X=0' },
+        { f:2, d:10, Z:1000, X:0, expected: -75.4194740204725, label: 'f=2,d=10,Z=1000,X=0' },
+        { f:2, d:25, Z:50,  X:1, expected: -30.955365192396957, label: 'f=2,d=25,Z=50,X=1' },
+        { f:1, d:25, Z:100, X:1, expected: -44.79578671351384, label: 'f=1,d=25,Z=100,X=1' },
+        { f:10,d:10, Z:100, X:0, expected: -41.45091437798307, label: 'f=10,d=10,Z=100,X=0' },
+    ];
+    let allPass = true;
+    tests.forEach(t => {
+        const result = computeSPL(t.f, t.d, t.Z, t.X, 1492, 1);
+        const diff = Math.abs(result - t.expected);
+        const pass = diff < 1e-6;
+        if (!pass) allPass = false;
+        console.log(`${pass ? 'PASS' : 'FAIL'} ${t.label}: got ${result}, expected ${t.expected}, diff=${diff.toExponential(3)}`);
+    });
+    console.log(allPass ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED');
+    return allPass;
+}
+
+// ============ RESIZE ============
+function resizeActiveChart() {
+    const idx = state.activeTab;
+    if (idx > 4) return;
+    if (idx === 0) syncSweepPtsToChartWidth();
+    throttledRender(idx);
+}
+window.addEventListener('resize', resizeActiveChart);
+window.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+        closeManual();
+    }
+});
+
+// ============ INITIALIZATION ============
+document.addEventListener('DOMContentLoaded', () => {
+    loadPersistentState();
+    syncUIFromState();
+    renderManualLanguageList();
+    setManualLanguage(currentManualLanguage);
+    // Set initial sweep var UI state
+    onSweepVarChange(false);
+    // Set initial 3D mode visibility
+    onTab4ModeChange();
+    // Render first tab
+    switchTab(state.activeTab);
+});
+
+</script>
+</body>
+</html>
