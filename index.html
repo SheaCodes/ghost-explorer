@@ -751,25 +751,32 @@ select {
 
 <!-- ============ ADVANCED PANEL ============ -->
 <div id="advanced-panel" class="advanced-panel">
-    <div class="control-group">
+    <div class="control-group" id="adv-c">
         <label>Speed of Sound: <span class="val-display" id="val-c">1492</span> m/s</label>
         <div class="slider-row">
             <input type="range" id="sl-c" min="1400" max="1600" value="1492" step="1" oninput="onAdvancedChange()">
             <input type="number" id="num-c" min="1400" max="1600" value="1492" step="1" onchange="onAdvancedNumChange('c')">
         </div>
     </div>
-    <div class="control-group">
+    <div class="control-group" id="adv-r">
         <label>Reflectivity (R): <span class="val-display" id="val-R">1.00</span></label>
         <div class="slider-row">
             <input type="range" id="sl-R" min="0" max="1" value="1" step="0.01" oninput="onAdvancedChange()">
             <input type="number" id="num-R" min="0" max="1" value="1" step="0.01" onchange="onAdvancedNumChange('R')">
         </div>
     </div>
-    <div class="control-group">
+    <div class="control-group" id="adv-resolution">
         <label>Resolution: <span class="val-display" id="val-resolution">1.0x</span></label>
         <div class="slider-row">
             <input type="range" id="sl-resolution" min="0.5" max="6" value="1" step="0.1" oninput="onAdvancedChange()">
             <input type="number" id="num-resolution" min="0.5" max="6" value="1" step="0.1" onchange="onAdvancedNumChange('resolution')">
+        </div>
+    </div>
+    <div class="control-group" id="adv-sweep-points">
+        <label>Sweep Points: <span class="val-display" id="val-t0-pts">50</span></label>
+        <div class="slider-row">
+            <input type="range" id="sl-t0-pts-adv" min="5" max="5000" value="50" step="5" oninput="onTab0PtsSliderInput()">
+            <input type="number" class="num-lg" id="num-t0-pts-adv" min="5" max="5000" value="50" step="1" oninput="onTab0PtsNumInput()" onchange="onTab0PtsNumChange()">
         </div>
     </div>
 </div>
@@ -1713,17 +1720,23 @@ function readIntegerInRange(id, fallback, min, max) {
     return value;
 }
 
-function getResponsiveSweepPts() {
-    const width = getChartSize(0).width;
-    return clamp(Math.round((width / 12) * state.resolutionScale), 5, 1000);
+function setTab0SweepPts(value, persist) {
+    const pts = clamp(Math.round(value), 5, 5000);
+    state.tab0.sweepPts = pts;
+    const hidden = document.getElementById('sweep-pts');
+    const slider = document.getElementById('sl-t0-pts-adv');
+    const input = document.getElementById('num-t0-pts-adv');
+    const label = document.getElementById('val-t0-pts');
+    if (hidden) hidden.value = pts;
+    if (slider) slider.value = pts;
+    if (input) input.value = pts;
+    if (label) label.textContent = pts;
+    if (persist) savePersistentState();
+    return pts;
 }
 
-function syncSweepPtsToChartWidth() {
-    const pts = getResponsiveSweepPts();
-    state.tab0.sweepPts = pts;
-    const input = document.getElementById('sweep-pts');
-    if (input) input.value = pts;
-    return pts;
+function syncTab0PtsControls() {
+    return setTab0SweepPts(state.tab0.sweepPts, false);
 }
 
 function getResponsiveGridCount(pixels, pixelsPerSample, min, max) {
@@ -1844,7 +1857,7 @@ function syncUIFromState() {
     });
     document.getElementById('sweep-min').value = t0.sweepMin;
     document.getElementById('sweep-max').value = t0.sweepMax;
-    document.getElementById('sweep-pts').value = t0.sweepPts;
+    syncTab0PtsControls();
     syncTab0PlotButtons();
 
     const t2 = state.tab2;
@@ -2082,12 +2095,29 @@ function throttledRender(tabIdx) {
 }
 
 // ============ TAB SWITCHING ============
+function updateAdvancedControlVisibility() {
+    const idx = state.activeTab;
+    const showResolution = idx === 2 || idx === 3 || idx === 4;
+    const showSweepPoints = idx === 0;
+
+    const resolutionGroup = document.getElementById('adv-resolution');
+    const sweepPointsGroup = document.getElementById('adv-sweep-points');
+
+    if (resolutionGroup) {
+        resolutionGroup.classList.toggle('hidden', !showResolution);
+    }
+    if (sweepPointsGroup) {
+        sweepPointsGroup.classList.toggle('hidden', !showSweepPoints);
+    }
+}
+
 function switchTab(idx) {
     idx = Number(idx);
     if (!Number.isInteger(idx) || idx === 1 || idx < 0 || idx > 5) {
         idx = 0;
     }
     state.activeTab = idx;
+    updateAdvancedControlVisibility();
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.toggle('active', Number(btn.dataset.tab) === idx);
     });
@@ -2152,15 +2182,14 @@ function onSweepVarChange(resetRange) {
         const d = sweepDefaults[sel];
         document.getElementById('sweep-min').value = d.min;
         document.getElementById('sweep-max').value = d.max;
-        document.getElementById('sweep-pts').value = d.pts;
         state.tab0.sweepMin = d.min;
         state.tab0.sweepMax = d.max;
         state.tab0.sweepPts = d.pts;
     }
     document.getElementById('sweep-min').value = state.tab0.sweepMin;
     document.getElementById('sweep-max').value = state.tab0.sweepMax;
+    syncTab0PtsControls();
     state.tab0.inspectX = null;
-    syncSweepPtsToChartWidth();
     savePersistentState();
     throttledRender(0);
 }
@@ -2188,7 +2217,7 @@ function resetSweepRange() {
     state.tab0.inspectX = null;
     document.getElementById('sweep-min').value = d.min;
     document.getElementById('sweep-max').value = d.max;
-    syncSweepPtsToChartWidth();
+    syncTab0PtsControls();
     savePersistentState();
     throttledRender(0);
 }
@@ -2208,9 +2237,38 @@ function onTab0Change() {
     t.sweepMax = Math.max(sweepMin, sweepMax);
     document.getElementById('sweep-min').value = t.sweepMin;
     document.getElementById('sweep-max').value = t.sweepMax;
-    syncSweepPtsToChartWidth();
     t.inspectX = null;
     savePersistentState();
+    throttledRender(0);
+}
+
+function onTab0PtsSliderInput() {
+    const raw = parseInt(document.getElementById('sl-t0-pts-adv').value, 10);
+    if (!Number.isFinite(raw)) return;
+    setTab0SweepPts(raw, true);
+    state.tab0.inspectX = null;
+    throttledRender(0);
+}
+
+function onTab0PtsNumInput() {
+    const el = document.getElementById('num-t0-pts-adv');
+    const raw = parseInt(el.value, 10);
+    if (!Number.isFinite(raw) || raw < 5 || raw > 5000) return;
+    state.tab0.sweepPts = raw;
+    const slider = document.getElementById('sl-t0-pts-adv');
+    const hidden = document.getElementById('sweep-pts');
+    const label = document.getElementById('val-t0-pts');
+    if (slider) slider.value = raw;
+    if (hidden) hidden.value = raw;
+    if (label) label.textContent = raw;
+    state.tab0.inspectX = null;
+    throttledRender(0);
+}
+
+function onTab0PtsNumChange() {
+    const pts = readIntegerInRange('num-t0-pts-adv', state.tab0.sweepPts, 5, 5000);
+    setTab0SweepPts(pts, true);
+    state.tab0.inspectX = null;
     throttledRender(0);
 }
 
@@ -2287,7 +2345,6 @@ function getCurrentTab0CurveLabel() {
 }
 
 function buildCurrentTab0CurveRecord() {
-    syncSweepPtsToChartWidth();
     const t = state.tab0;
     const data = generateTab0Data();
     return {
@@ -2689,11 +2746,7 @@ function createTab0WorkbookBlob() {
 function renderTab0() {
     const t = state.tab0;
     const size = getChartSize(0);
-    const responsivePts = getResponsiveSweepPts();
-    if (t.sweepPts !== responsivePts) {
-        t.sweepPts = responsivePts;
-        document.getElementById('sweep-pts').value = responsivePts;
-    }
+    syncTab0PtsControls();
     const currentCurve = buildCurrentTab0CurveRecord();
     const data = { x: currentCurve.x, y: currentCurve.y, phases: currentCurve.phases };
     const traces = [];
@@ -3720,7 +3773,6 @@ function validateAgainstSpreadsheet() {
 function resizeActiveChart() {
     const idx = state.activeTab;
     if (idx > 4) return;
-    if (idx === 0) syncSweepPtsToChartWidth();
     throttledRender(idx);
 }
 window.addEventListener('resize', resizeActiveChart);
